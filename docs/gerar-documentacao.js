@@ -101,7 +101,7 @@ const visao = [
     ["Planilha da Pastoral", "Leitura de .xlsx com `python-calamine` (PC) ou `openpyxl` (Android)"],
     ["App Android", "Chaquopy 16 (Python no Android) + WebView, Android 11+ (minSdk 30, targetSdk 35), arm64"],
     ["Testes", "pytest: `python -m pytest tests` (25 testes)"],
-    ["Controle de versão", "O projeto **ainda não é um repositório git**"],
+    ["Controle de versão", "git + GitHub: https://github.com/marcus-paixao/coroinhas (público, branch main)"],
   ], [2600, 7038]),
   h2("Identidade visual"),
   p("Azul mariano da abóbada da basílica (`#12215f` → `#3b5bdb`), dourado dos arcos (`#f5c451`) e o vermelho da batina (`#d6293a`). Fontes Fredoka (títulos) e Nunito (texto). Animações em CSS (entrada das telas, vela e rosácea da ilustração) respeitam a opção “reduzir movimento” do sistema operacional."),
@@ -380,6 +380,7 @@ const historico = [
     ["28/10/2026", "Bootstrap, ícones, fontes e html-to-image passaram a ser locais (`static/vendor/`): o sistema funciona sem internet."],
     ["28/10/2026", "**App Android offline** (pasta `apk/`): Chaquopy + WebView, ponte para salvar/compartilhar/copiar, 1º coordenador pelo app, planilha via openpyxl. APK gerado com sucesso (21 MB)."],
     ["28/10/2026", "`construir.ps1` salvo em UTF-8 com BOM (o PowerShell 5.1 quebrava com acentos). Versão do APK automática pela data do build."],
+    ["28/10/2026", "Projeto enviado ao GitHub (`marcus-paixao/coroinhas`). Os nomes reais da equipe que estavam nos testes foram trocados por nomes fictícios."],
     ["28/10/2026", "Layout de **app** no celular: topo e menu de baixo fixos, só o meio rola, sem o efeito de esticar, sem zoom e sem fundo branco nas bordas; fontes sem “pulo” ao carregar."],
   ], [1500, 8138]),
 ];
@@ -390,7 +391,7 @@ const pendencias = [
   item("**Testar no S25 Ultra** a parte nativa: compartilhar a imagem da escala, salvar o backup, escolher arquivo (planilha/backup), botão voltar e criação da 1ª conta."),
   item("Registrar as alterações de contas no Histórico (hoje não registra)."),
   item("Não há sincronização entre PC e celular: só o backup manual. Para ter os mesmos dados nos dois, o caminho seria hospedar o sistema na internet (com HTTPS) e apontar o app para lá."),
-  item("Versionar o projeto com git, sem incluir `dados/` (já no .gitignore) nem `apk/assinatura/` (já no `apk/.gitignore`)."),
+  item("O repositório no GitHub é **público**: nunca suba `dados/`, planilhas, backups `.json` ou `apk/assinatura/` (já estão no .gitignore), e use só nomes fictícios nos testes."),
   item("Guardar uma cópia extra de `apk\\assinatura\\` fora do PC."),
 ];
 
@@ -399,7 +400,8 @@ const contexto = [
   p("Cole o texto abaixo ao pedir ajuda a outra pessoa ou a uma IA, junto com este documento:"),
   ...codigo([
     "Projeto: sistema da escala dos Coroinhas da Basílica N. Sra. de Lourdes (Vila Isabel).",
-    "Pasta: C:\\Users\\mvim_\\OneDrive\\Desktop\\Codes\\Projetos\\Coroinhas (Windows, sem git).",
+    "Pasta: C:\\Users\\mvim_\\OneDrive\\Desktop\\Codes\\Projetos\\Coroinhas (Windows).",
+    "GitHub: https://github.com/marcus-paixao/coroinhas (público; nada de dados reais).",
     "Stack: Python 3.11 + Flask 3.1 + SQLite + Jinja + Bootstrap 5.3 local + JS puro.",
     "Rodar: .venv\\Scripts\\python.exe app.py  |  testes: python -m pytest tests (25).",
     "Projeto em blueprint: projetos/coroinhas (rotas, regras, repositorio, planilha, padrao).",
