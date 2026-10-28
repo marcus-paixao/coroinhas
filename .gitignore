@@ -1,0 +1,11 @@
+# Dados pessoais de menores (cadastros, escalas, backups e planilhas) e chave da sessão — nunca versionar
+dados/
+*.xlsx
+
+# Python
+.venv/
+__pycache__/
+.pytest_cache/
+
+# Versão anterior (React + Vite), guardada só para consulta
+_versao_react_antiga/

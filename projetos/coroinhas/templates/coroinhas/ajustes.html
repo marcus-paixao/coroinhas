@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% from "coroinhas/_macros.html" import cabecalho %}
+{% block titulo %}Ajustes & Backup{% endblock %}
+
+{% block conteudo %}
+{{ cabecalho("Ajustes & Backup", "Os dados ficam no servidor (SQLite em dados/coroinhas/) e aparecem em qualquer aparelho logado.") }}
+
+<div class="grade-ajustes mb-4">
+  <section class="cartao cartao-pad entrar" style="--i:1">
+    <h2>📥 Importar planilha</h2>
+    <p>Use a planilha da Pastoral (.xlsx) com as colunas <b>Função</b>, <b>Nome</b> e <b>Data de Nascimento</b>.
+       Quem já está cadastrado é atualizado, sem duplicar.</p>
+    <button type="button" class="btn btn-ouro" data-arquivo="inputPlanilha"><i class="bi bi-file-earmark-spreadsheet"></i> Importar planilha</button>
+    <input type="file" id="inputPlanilha" accept=".xlsx" hidden>
+  </section>
+
+  <section class="cartao cartao-pad entrar" style="--i:2">
+    <h2>💾 Backup</h2>
+    <p>Baixe um arquivo com tudo (cadastros, funções, missas fixas e escalas) para guardar.
+       Hoje: {{ n_membros }} pessoas.</p>
+    <div class="d-flex flex-wrap gap-2">
+      <a class="btn btn-azul" href="{{ url_for('coroinhas.backup') }}" data-baixar="backup-coroinhas-{{ hoje }}.json"><i class="bi bi-download"></i> Baixar backup</a>
+      <button type="button" class="btn btn-contorno" data-arquivo="inputBackup"><i class="bi bi-upload"></i> Restaurar backup</button>
+      <input type="file" id="inputBackup" accept=".json,application/json" hidden>
+    </div>
+  </section>
+
+  <section class="cartao cartao-pad entrar" style="--i:3">
+    <h2>🔔 Quem entra nos alertas</h2>
+    <p>Escolha quem deve aparecer em “faltando na escala”. Quem estiver marcado como Ausente nunca é alertado.</p>
+    {% for k, v in TIPOS.items() %}
+    <label class="check-linha"><input type="checkbox" data-tipo="{{ k }}" {% if k in config.tipos_escalaveis %}checked{% endif %}> {{ v }}</label>
+    {% endfor %}
+  </section>
+
+  <section class="cartao cartao-pad entrar" style="--i:4">
+    <h2>🧹 Recomeçar do zero</h2>
+    <p>Apaga todos os cadastros e escalas e volta as funções e missas fixas ao padrão. Baixe um backup antes!</p>
+    <button type="button" class="btn btn-contorno text-danger" id="btnApagar"><i class="bi bi-arrow-counterclockwise"></i> Apagar tudo</button>
+  </section>
+</div>
+
+<section class="cartao cartao-pad entrar" style="--i:5">
+  <div class="titulo-secao"><h2><i class="bi bi-clock-history"></i> Histórico de alterações</h2><span class="tag tag-cinza">últimas {{ historico|length }}</span></div>
+  <div class="table-responsive">
+    <table class="table table-hover table-sm tabela-historico">
+      <thead><tr><th>Quando</th><th>Quem</th><th>Ação</th><th>O que mudou</th></tr></thead>
+      <tbody>
+        {% for h in historico %}
+        <tr>
+          <td class="text-nowrap">{{ h.quando[8:10] }}/{{ h.quando[5:7] }} {{ h.quando[11:16] }}</td>
+          <td class="text-nowrap">{{ h.usuario or '—' }}</td>
+          <td><span class="tag tag-azul">{{ h.acao }}</span></td>
+          <td>{{ h.descricao }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" class="text-center text-secondary py-3">Nenhuma alteração ainda.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('coroinhas.static', filename='js/ajustes.js') }}"></script>
+{% endblock %}

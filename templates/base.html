@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#12215f">
+  <title>{% block titulo %}Coroinhas{% endblock %} · Basílica de Lourdes</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/favicon.svg') }}">
+  <!-- Bootstrap 5.3.3, Bootstrap Icons 1.11.3 e as fontes ficam em static/vendor (funciona sem internet, inclusive no APK) -->
+  <link rel="preload" href="{{ url_for('static', filename='vendor/fontes/nunito-latin.woff2') }}" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="{{ url_for('static', filename='vendor/fontes/fredoka-latin.woff2') }}" as="font" type="font/woff2" crossorigin>
+  <link href="{{ url_for('static', filename='vendor/fontes/fontes.css') }}" rel="stylesheet">
+  <link href="{{ url_for('static', filename='vendor/bootstrap/bootstrap.min.css') }}" rel="stylesheet">
+  <link href="{{ url_for('static', filename='vendor/bootstrap-icons/bootstrap-icons.min.css') }}" rel="stylesheet">
+  {% block head %}{% endblock %}
+  <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+<body class="com-menu">
+{% macro marca() %}
+  <a href="{{ url_for('inicio') }}" class="marca">
+    <span class="marca-icone" aria-hidden="true">
+      <svg width="26" height="26" viewBox="0 0 64 64"><path class="ba-chama" d="M32 6c6 8 8 12 8 17a8 8 0 0 1-16 0c0-5 2-9 8-17z" fill="#f5c451"/><rect x="26" y="33" width="12" height="20" rx="3" fill="#fff"/><rect x="21" y="52" width="22" height="5" rx="2.5" fill="#f5c451"/></svg>
+    </span>
+    <span><strong>Coroinhas</strong><small>Basílica de Lourdes · Vila Isabel</small></span>
+  </a>
+{% endmacro %}
+{% macro links(curto) %}
+  {% for ep, rotulo, rotulo_curto, icone in abas %}
+  <a href="{{ url_for('coroinhas.' ~ ep) }}" class="{% if aba == ep %}ativo{% endif %}" {% if aba == ep %}aria-current="page"{% endif %}>
+    <i class="bi {{ icone }}"></i><span>{{ rotulo_curto if curto else rotulo }}</span>
+    {% if ep == 'escala' and badge_escala %}<span class="menu-badge">{{ badge_escala }}</span>{% endif %}
+  </a>
+  {% endfor %}
+{% endmacro %}
+
+<div class="app">
+  <aside class="sidebar">
+    {{ marca() }}
+    <nav class="menu" aria-label="Menu">{{ links(false) }}</nav>
+    <div class="conta">
+      <div class="conta-linha">
+        <a href="{{ url_for('acesso.conta') }}" class="conta-nome{% if request.endpoint == 'acesso.conta' %} ativo{% endif %}" title="Minha conta">
+          <i class="bi bi-person-circle"></i> {{ usuario.nome if usuario else '' }}</a>
+        <form method="post" action="{{ url_for('acesso.sair') }}"><button class="btn-icone" title="Sair" aria-label="Sair"><i class="bi bi-box-arrow-right"></i></button></form>
+      </div>
+      <small>Pastoral dos Coroinhas e Cerimoniários ✝</small>
+    </div>
+  </aside>
+
+  <header class="topo-mobile">
+    {{ marca() }}
+    <a href="{{ url_for('acesso.conta') }}" class="btn-icone ms-auto" title="Minha conta" aria-label="Minha conta"><i class="bi bi-person-circle"></i></a>
+    <form method="post" action="{{ url_for('acesso.sair') }}"><button class="btn-icone" title="Sair" aria-label="Sair"><i class="bi bi-box-arrow-right"></i></button></form>
+  </header>
+
+  <main class="conteudo">
+    <div class="pagina">
+      {% block conteudo %}{% endblock %}
+    </div>
+  </main>
+
+  <nav class="menu-mobile" aria-label="Menu">{{ links(true) }}</nav>
+</div>
+
+<!-- Confirmação genérica (App.confirmar) -->
+<div class="modal fade" id="modalConfirmar" tabindex="-1" aria-labelledby="confirmarTitulo" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title" id="confirmarTitulo">Confirmar</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body text-secondary" id="confirmarTexto"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-contorno" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-perigo" id="btnConfirmar">Confirmar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container avisos" id="toasts" aria-live="polite"></div>
+
+<script src="{{ url_for('static', filename='vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/comum.js') }}"></script>
+<script>window.API = {{ url_for('coroinhas.painel')|tojson }}.replace(/\/$/, "");</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

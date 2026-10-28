@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% from "coroinhas/_macros.html" import avatar, vazio %}
+{% block titulo %}Painel{% endblock %}
+
+{% block conteudo %}
+{% set preenchidas = pend.total_vagas - pend.vagas_abertas %}
+<section class="hero">
+  {% for i in range(16) %}
+  <span class="estrela" style="left:{{ (i * 37 + 11) % 100 }}%;top:{{ (i * 53 + 7) % 90 }}%;animation-delay:{{ (i * 0.37) % 3 }}s;{% if i % 3 == 0 %}width:5px;height:5px{% endif %}"></span>
+  {% endfor %}
+  <div class="hero-texto">
+    <span class="hero-eyebrow entrar"><i class="bi bi-stars"></i> {{ saudacao }}{% if usuario %}, {{ usuario.nome.split()[0] }}{% endif %}! Paz e bem 🙏</span>
+    <h1 class="entrar" style="--i:1">Escala de <em>{{ titulo }}</em></h1>
+    <p class="entrar" style="--i:2">
+      {% if not tem_membros %}Comece importando a planilha da Pastoral com os coroinhas e cerimoniários.
+      {% elif not missas %}A escala desta semana ainda não foi criada. Bora montar?
+      {% elif pend.vagas_abertas == 0 and not pend.sem_escala %}Tudo certo! Todas as vagas preenchidas e ninguém ficou de fora. ✨
+      {% else %}Faltam {{ pend.vagas_abertas }} vaga(s) e {{ pend.sem_escala|length }} pessoa(s) ainda não foram escaladas.{% endif %}
+    </p>
+    <div class="d-flex align-items-center gap-3 entrar" style="--i:3">
+      {% if not tem_membros %}
+      <a class="btn btn-ouro" href="{{ url_for('coroinhas.ajustes') }}"><i class="bi bi-file-earmark-spreadsheet"></i> Importar planilha</a>
+      {% else %}
+      <a class="btn btn-ouro" href="{{ url_for('coroinhas.escala', semana=semana.isoformat()) }}">{{ 'Abrir escala' if missas else 'Montar escala' }} <i class="bi bi-arrow-right"></i></a>
+      {% endif %}
+      {% if pend.total_vagas %}
+      <div class="anel {% if preenchidas == pend.total_vagas %}completo{% endif %}" style="--pct: {{ (100 * preenchidas / pend.total_vagas)|round(1) }}">
+        <div class="anel-texto"><strong>{{ preenchidas }}/{{ pend.total_vagas }}</strong><span>vagas</span></div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="hero-arte">{% include "_basilica.html" %}</div>
+</section>
+
+<div class="grade-stats">
+  {% set stats = [
+    ("Na equipe (disponíveis)", ativos|length, "bi-people-fill", "#3b5bdb", "#e8eeff", url_for('coroinhas.equipe')),
+    ("Vagas abertas na semana", pend.vagas_abertas, "bi-calendar2-check-fill", "#f08c00", "#fff1d6", url_for('coroinhas.escala')),
+    ("Sem escala na semana", pend.sem_escala|length if missas else 0, "bi-exclamation-triangle-fill", "#d6293a", "#ffe3e6", url_for('coroinhas.escala')),
+    ("Marcados como ausentes", pend.ausentes|length, "bi-bell-slash-fill", "#5b648a", "#eef0f6", url_for('coroinhas.equipe')),
+  ] %}
+  {% for rotulo, valor, icone, cor, fundo, link in stats %}
+  <a href="{{ link }}" class="cartao stat entrar" style="--i:{{ loop.index + 3 }}">
+    <span class="stat-icone" style="background:{{ fundo }};color:{{ cor }}"><i class="bi {{ icone }}"></i></span>
+    <span class="stat-valor">{{ valor }}</span>
+    <span class="stat-rotulo">{{ rotulo }}</span>
+  </a>
+  {% endfor %}
+</div>
+
+<div class="grade-painel">
+  <div class="coluna">
+    <section class="cartao cartao-pad entrar" style="--i:8">
+      <div class="titulo-secao">
+        <h2><i class="bi bi-exclamation-triangle-fill" style="color:#f08c00"></i> Ainda sem escala nesta semana</h2>
+        {% if missas and pend.sem_escala %}<span class="tag tag-laranja">{{ pend.sem_escala|length }}</span>{% endif %}
+      </div>
+      {% if not missas %}
+        {% call vazio("🗓️", "Escala da semana não criada") %}
+          <p class="mb-3">Crie as missas da semana para ver quem está faltando.</p>
+          <a class="btn btn-suave" href="{{ url_for('coroinhas.escala') }}">Montar escala</a>
+        {% endcall %}
+      {% elif not pend.sem_escala %}
+        {{ vazio("🙌", "Ninguém ficou de fora!") }}
+      {% else %}
+        <div class="lista-pessoas">
+          {% for m in pend.sem_escala %}<span class="pessoa-pill alerta entrar" style="--i:{{ loop.index }}">{{ avatar(m, 28) }} {{ m.apelido }}</span>{% endfor %}
+        </div>
+      {% endif %}
+      {% if pend.ausentes %}
+      <p class="mt-3 mb-0 small" style="color:var(--texto-3)"><i class="bi bi-bell-slash"></i>
+        {{ pend.ausentes|length }} ausente(s) não entram neste alerta: {{ pend.ausentes|map(attribute='apelido')|join(', ') }}</p>
+      {% endif %}
+    </section>
+
+    <section class="cartao cartao-pad entrar" style="--i:9" id="ranking">
+      <div class="titulo-secao"><h2>📊 Quantas vezes cada um serviu em {{ mes }}</h2></div>
+      {% if not ranking %}
+        {{ vazio("⛪", "Sem dados ainda") }}
+      {% else %}
+        <p class="small text-secondary" style="margin:-6px 0 14px">Quem serviu menos aparece primeiro — ajuda a dividir as missas com justiça.</p>
+        {% for r in ranking %}
+        <div class="barra-linha {% if loop.index > 10 %}ranking-extra{% endif %}" style="--i:{{ loop.index }}">
+          <span class="nome">{{ r.m.apelido }}</span>
+          <div class="barra"><div style="width:{{ 100 * r.vezes / max_vezes }}%;{% if not r.vezes %}background:transparent{% endif %}"></div></div>
+          <strong class="text-end" {% if not r.vezes %}style="color:var(--vermelho)"{% endif %}>{{ r.vezes }}</strong>
+        </div>
+        {% endfor %}
+        {% if ranking|length > 10 %}
+        <button type="button" class="btn btn-suave btn-sm mt-3" id="btnRanking" data-total="{{ ranking|length }}">Ver todos ({{ ranking|length }})</button>
+        {% endif %}
+      {% endif %}
+    </section>
+  </div>
+
+  <div class="coluna">
+    <section class="cartao cartao-pad entrar" style="--i:10">
+      <div class="titulo-secao">
+        <h2><i class="bi bi-cake2-fill" style="color:var(--vermelho)"></i> Aniversariantes</h2>
+        <span class="tag tag-cinza">próximos 30 dias</span>
+      </div>
+      {% for a in aniversariantes %}
+      <div class="linha-pessoa {% if a.faltam == 0 %}hoje{% endif %}">
+        <span class="dia-aniversario">{{ a.nascimento[8:] }}</span>
+        <div class="flex-grow-1">
+          <strong>{{ a.apelido }}</strong>
+          <small>{% if a.faltam == 0 %}🎉 É hoje! {% elif a.faltam == 1 %}Amanhã · {% else %}Em {{ a.faltam }} dias · {% endif %}{{ regras.data_curta(a.nascimento) }} · faz {{ a.fara }} anos</small>
+        </div>
+      </div>
+      {% else %}
+        {{ vazio("🎂", "Nenhum aniversário por perto") }}
+      {% endfor %}
+    </section>
+
+    <section class="cartao cartao-pad entrar" style="--i:11">
+      <div class="titulo-secao"><h2><i class="bi bi-person-dash-fill" style="color:var(--texto-2)"></i> Ausentes</h2></div>
+      {% for m in pend.ausentes %}
+      <div class="linha-pessoa">
+        {{ avatar(m, 40, true) }}
+        <div class="flex-grow-1" style="min-width:0">
+          <strong>{{ m.apelido }}</strong>
+          <small>{{ m.motivo_ausencia or 'Sem motivo informado' }}{% if m.ausente_ate %} · até {{ regras.data_curta(m.ausente_ate) }}{% endif %}</small>
+        </div>
+        <button type="button" class="btn btn-suave btn-sm" data-voltou="{{ m.id }}" data-nome="{{ m.apelido }}">Voltou</button>
+      </div>
+      {% else %}
+      <p class="mb-0 text-secondary">Ninguém marcado como ausente. 👍</p>
+      {% endfor %}
+    </section>
+    <p class="text-center small mb-0" style="color:var(--texto-3)">Hoje é {{ regras.data_curta(hoje.isoformat()) }}</p>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('coroinhas.static', filename='js/painel.js') }}"></script>
+{% endblock %}

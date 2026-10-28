@@ -1,0 +1,18 @@
+{% macro avatar(m, tam=32, apagado=false) -%}
+<span class="avatar{% if apagado %} apagado{% endif %}" style="--tam:{{ tam }}px;background:{{ m.cor }}" aria-hidden="true">{{ m.iniciais }}</span>
+{%- endmacro %}
+
+{% macro chip_funcao(f) -%}
+<span class="chip-funcao" style="--cor:{{ f.cor }}"><span aria-hidden="true">{{ f.emoji }}</span>{{ f.nome }}</span>
+{%- endmacro %}
+
+{% macro vazio(emoji, titulo) -%}
+<div class="vazio entrar"><span class="emoji">{{ emoji }}</span><h3>{{ titulo }}</h3>{{ caller() if caller }}</div>
+{%- endmacro %}
+
+{% macro cabecalho(titulo, subtitulo) -%}
+<div class="cabecalho-pagina entrar">
+  <div><h1>{{ titulo }}</h1>{% if subtitulo %}<p>{{ subtitulo }}</p>{% endif %}</div>
+  {% if caller %}<div class="d-flex flex-wrap gap-2 align-items-center">{{ caller() }}</div>{% endif %}
+</div>
+{%- endmacro %}

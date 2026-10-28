@@ -1,0 +1,9 @@
+plugins {
+    id 'com.android.application' version '8.7.3' apply false
+    id 'com.chaquo.python' version '16.0.0' apply false     // roda o Python (Flask) dentro do app
+}
+
+// Os arquivos intermediários do build (centenas de MB) ficam fora do OneDrive
+allprojects {
+    layout.buildDirectory = new File(System.getenv('LOCALAPPDATA') ?: "$rootDir/build", "CoroinhasApk/build/${project.name}")
+}

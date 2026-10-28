@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% from "coroinhas/_macros.html" import cabecalho %}
+{% block titulo %}Escala {{ dados.titulo }}{% endblock %}
+
+{% block conteudo %}
+{% call cabecalho("Escala", "Toque numa vaga para escolher quem vai servir.") %}
+  <div class="semana-nav">
+    <a class="btn-icone" href="{{ url_for('coroinhas.escala', semana=dados.anterior) }}" aria-label="Semana anterior"><i class="bi bi-chevron-left"></i></a>
+    <div class="rotulo"><span id="tituloSemana">{{ dados.titulo }}</span><small>{{ dados.distancia }}</small></div>
+    <a class="btn-icone" href="{{ url_for('coroinhas.escala', semana=dados.proxima) }}" aria-label="Próxima semana"><i class="bi bi-chevron-right"></i></a>
+    {% if dados.semana != dados.atual %}<a class="btn btn-suave btn-sm" href="{{ url_for('coroinhas.escala') }}">Hoje</a>{% endif %}
+  </div>
+{% endcall %}
+
+<div class="d-flex flex-wrap gap-2 mb-3 entrar" style="--i:1" id="acoes"></div>
+
+<div class="grade-escala">
+  <div id="missas"></div>
+  <aside class="painel-lateral" id="lateral"></aside>
+</div>
+
+<!-- Escolher quem serve numa vaga -->
+<div class="modal fade" id="modalEscolher" tabindex="-1" aria-labelledby="escolherTitulo" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title" id="escolherTitulo"></h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <div class="busca mb-2"><i class="bi bi-search"></i><input class="form-control" id="buscaMembro" placeholder="Buscar pelo nome…" autocomplete="off"></div>
+        <div class="lista-selecao" id="listaMembros"></div>
+      </div>
+      <div class="modal-footer" id="rodapeEscolher">
+        <button type="button" class="btn btn-contorno" id="btnLiberar"><i class="bi bi-person-dash"></i> Deixar vaga em aberto</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Escolher a vaga de uma pessoa (a partir de "Faltando na escala") -->
+<div class="modal fade" id="modalVagas" tabindex="-1" aria-labelledby="vagasTitulo" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title" id="vagasTitulo"></h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body"><div class="lista-selecao" id="listaVagas"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Criar / editar missa -->
+<div class="modal fade" id="modalMissa" tabindex="-1" aria-labelledby="missaTitulo" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <form class="modal-content" id="formMissa" novalidate>
+      <div class="modal-header">
+        <h2 class="modal-title" id="missaTitulo">Missa</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <div class="grade-form">
+          <label class="campo"><span>Data</span><input class="form-control" type="date" name="data" required></label>
+          <label class="campo"><span>Horário</span><input class="form-control" type="time" name="hora" required></label>
+          <label class="campo inteiro"><span>Título (opcional)</span>
+            <input class="form-control" name="titulo" maxlength="120" placeholder="Ex.: Solenidade de Todos os Santos, Missa com Crisma…"></label>
+          <label class="campo inteiro" id="campoBase"><span>Copiar as vagas de uma missa fixa</span>
+            <select class="form-select" id="selBase"></select></label>
+          <div class="campo inteiro"><span>Vagas e funções</span><div id="editorVagasMissa"></div></div>
+          <label class="campo"><span>Quantidade de reservas</span><input class="form-control" type="number" name="reservas" min="0" max="20"></label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <div class="text-danger small me-auto" id="missaErro" role="alert"></div>
+        <button type="button" class="btn btn-contorno" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-azul"><i class="bi bi-check-lg"></i> Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="exportacao-fora" aria-hidden="true"><div class="exportacao" id="arteEscala"></div></div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='vendor/html-to-image/html-to-image.js') }}"></script>
+<script>window.ESCALA = {{ dados|tojson }};</script>
+<script src="{{ url_for('coroinhas.static', filename='js/editor_vagas.js') }}"></script>
+<script src="{{ url_for('coroinhas.static', filename='js/escala.js') }}"></script>
+{% endblock %}

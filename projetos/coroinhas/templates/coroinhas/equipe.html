@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% from "coroinhas/_macros.html" import avatar, cabecalho, vazio %}
+{% block titulo %}Coroinhas{% endblock %}
+
+{% block conteudo %}
+{% call cabecalho("Coroinhas & Cerimoniários",
+     (membros|selectattr('tipo', 'eq', 'coroinha')|list|length) ~ " coroinhas · " ~
+     (membros|selectattr('tipo', 'eq', 'cerimoniario')|list|length) ~ " cerimoniários · " ~
+     (membros|selectattr('tipo', 'eq', 'coordenacao')|list|length) ~ " na coordenação") %}
+  <button type="button" class="btn btn-contorno" data-importar><i class="bi bi-file-earmark-spreadsheet"></i> Importar planilha</button>
+  <button type="button" class="btn btn-azul" data-novo><i class="bi bi-person-plus-fill"></i> Novo cadastro</button>
+{% endcall %}
+<input type="file" id="inputPlanilha" accept=".xlsx" hidden>
+
+{% if not membros %}
+<div class="cartao">
+  {% call vazio("🙋", "Ninguém cadastrado ainda") %}
+    <p class="mb-3">Importe a planilha da Pastoral ou cadastre um por um.</p>
+    <div class="d-flex gap-2 justify-content-center flex-wrap">
+      <button type="button" class="btn btn-ouro" data-importar><i class="bi bi-file-earmark-spreadsheet"></i> Importar planilha</button>
+      <button type="button" class="btn btn-suave" data-novo><i class="bi bi-person-plus-fill"></i> Novo cadastro</button>
+    </div>
+  {% endcall %}
+</div>
+{% else %}
+{% set n_ausentes = membros|selectattr('ausente_hoje')|list|length %}
+<div class="filtros entrar" style="--i:1">
+  <div class="busca"><i class="bi bi-search"></i><input class="form-control" id="busca" placeholder="Buscar pelo nome…" autocomplete="off"></div>
+  <div class="segmentado" role="tablist" id="filtroTipo">
+    <button type="button" class="ativo" data-filtro="todos">Todos</button>
+    <button type="button" data-filtro="coroinha">Coroinhas</button>
+    <button type="button" data-filtro="cerimoniario">Cerimoniários</button>
+    <button type="button" data-filtro="coordenacao">Coordenação</button>
+    <button type="button" data-filtro="ausentes">Ausentes{% if n_ausentes %} ({{ n_ausentes }}){% endif %}</button>
+  </div>
+</div>
+
+<div class="grade-membros" id="grade">
+  {% for m in membros %}
+  <article class="cartao membro entrar {% if m.ausente_hoje %}ausente{% endif %}" style="--i:{{ [loop.index, 20]|min }}"
+           data-id="{{ m.id }}" data-tipo="{{ m.tipo }}" data-ausente="{{ m.ausente_hoje|int }}" data-busca="{{ regras.normalizar(m.nome ~ ' ' ~ m.apelido) }}">
+    <div class="membro-topo">
+      {{ avatar(m, 48) }}
+      <div class="info"><h3>{{ m.apelido }}</h3><small>{{ m.nome }}</small></div>
+      <button type="button" class="btn-icone" data-editar="{{ m.id }}" aria-label="Editar {{ m.apelido }}"><i class="bi bi-pencil"></i></button>
+      <button type="button" class="btn-icone perigo" data-remover="{{ m.id }}" aria-label="Remover {{ m.apelido }}"><i class="bi bi-trash3"></i></button>
+    </div>
+    <div class="chips">
+      <span class="tag {{ {'coroinha': 'tag-azul', 'cerimoniario': 'tag-ouro', 'coordenacao': 'tag-verde'}[m.tipo] }}">{{ TIPOS[m.tipo] }}</span>
+      {% if m.idade is not none %}<span class="tag tag-cinza">{{ m.idade }} anos</span>{% endif %}
+      {% if m.faltam_aniversario is not none and m.faltam_aniversario <= 30 %}
+      <span class="tag tag-vermelho"><i class="bi bi-cake2"></i> {{ 'Hoje!' if m.faltam_aniversario == 0 else regras.data_curta(m.nascimento) }}</span>
+      {% endif %}
+      <span class="tag tag-cinza">{{ m.vezes_mes }}× no mês</span>
+      {% if m.ultima %}<span class="tag tag-cinza">última: {{ regras.data_curta(m.ultima) }}</span>{% endif %}
+    </div>
+    {% if m.ausente_hoje and (m.motivo_ausencia or m.ausente_ate) %}
+    <div class="membro-motivo"><i class="bi bi-bell-slash"></i> {{ m.motivo_ausencia or 'Ausente' }}{% if m.ausente_ate %} · até {{ regras.data_curta(m.ausente_ate) }}{% endif %}</div>
+    {% endif %}
+    <div class="membro-rodape">
+      <span data-status>{{ '🔕 Ausente — não entra nos alertas' if m.ausente_hoje else '✅ Disponível para a escala' }}</span>
+      <button type="button" class="switch" role="switch" aria-checked="{{ 'true' if m.ausente_hoje else 'false' }}"
+              aria-label="Marcar {{ m.apelido }} como ausente" data-ausencia="{{ m.id }}"></button>
+    </div>
+  </article>
+  {% endfor %}
+</div>
+<div id="nenhum" hidden>{{ vazio("🔍", "Ninguém encontrado") }}</div>
+{% endif %}
+
+<!-- Cadastro -->
+<div class="modal fade" id="modalMembro" tabindex="-1" aria-labelledby="membroTitulo" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <form class="modal-content" id="formMembro" novalidate>
+      <div class="modal-header">
+        <h2 class="modal-title" id="membroTitulo">Novo cadastro</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <div class="grade-form">
+          <label class="campo inteiro"><span>Nome completo</span><input class="form-control" name="nome" maxlength="200" required></label>
+          <label class="campo"><span>Nome na escala</span><input class="form-control" name="apelido" maxlength="80">
+            <small>É o nome que aparece na escala e no WhatsApp.</small></label>
+          <label class="campo"><span>Função na pastoral</span>
+            <select class="form-select" name="tipo">{% for k, v in TIPOS.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select></label>
+          <label class="campo"><span>Data de nascimento</span><input class="form-control" type="date" name="nascimento"></label>
+          <label class="campo"><span>Telefone / WhatsApp</span><input class="form-control" type="tel" name="telefone" maxlength="40"></label>
+          <label class="campo inteiro"><span>Responsável</span>
+            <input class="form-control" name="responsavel" maxlength="200" placeholder="Nome e contato do pai, mãe ou responsável"></label>
+          <div class="bloco-ausencia inteiro" id="blocoAusencia">
+            <div class="linha">
+              <div><strong>🔕 Ausente</strong><small>Enquanto estiver ligado, não aparece nos alertas de “faltando na escala”.</small></div>
+              <button type="button" class="switch" role="switch" aria-checked="false" aria-label="Ausente" id="switchAusente"></button>
+            </div>
+            <div class="detalhes"><div><div class="grade-form">
+              <label class="campo"><span>Motivo (opcional)</span><input class="form-control" name="motivo_ausencia" maxlength="200" placeholder="Viagem, provas, lesão…"></label>
+              <label class="campo"><span>Até quando? (opcional)</span><input class="form-control" type="date" name="ausente_ate">
+                <small>Depois dessa data volta a ser alertado sozinho.</small></label>
+            </div></div></div>
+          </div>
+          <label class="campo inteiro"><span>Observações</span><textarea class="form-control" name="observacoes" rows="3" maxlength="2000"></textarea></label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <div class="text-danger small me-auto" id="membroErro" role="alert"></div>
+        <button type="button" class="btn btn-contorno" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-azul"><i class="bi bi-check-lg"></i> Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>window.MEMBROS = {{ membros|tojson }};</script>
+<script src="{{ url_for('coroinhas.static', filename='js/equipe.js') }}"></script>
+{% endblock %}

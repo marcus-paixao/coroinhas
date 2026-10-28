@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#12215f">
+  <title>Entrar · Coroinhas · Basílica de Lourdes</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/favicon.svg') }}">
+  <link rel="preload" href="{{ url_for('static', filename='vendor/fontes/nunito-latin.woff2') }}" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="{{ url_for('static', filename='vendor/fontes/fredoka-latin.woff2') }}" as="font" type="font/woff2" crossorigin>
+  <link href="{{ url_for('static', filename='vendor/fontes/fontes.css') }}" rel="stylesheet">
+  <link href="{{ url_for('static', filename='vendor/bootstrap/bootstrap.min.css') }}" rel="stylesheet">
+  <link href="{{ url_for('static', filename='vendor/bootstrap-icons/bootstrap-icons.min.css') }}" rel="stylesheet">
+  <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+<body class="tela-cheia">
+  <div class="login-arte entrar">{% include "_basilica.html" %}</div>
+  <form method="post" class="cartao login entrar" style="--i: 2">
+    <h1>Coroinhas <em>de Lourdes</em></h1>
+    <p>Escala da Pastoral dos Coroinhas e Cerimoniários · Basílica Nossa Senhora de Lourdes</p>
+    {% if primeira_vez %}
+    <div class="alerta-box laranja"><i class="bi bi-person-plus"></i>
+      <div><strong>Bem-vindo! Crie a conta de coordenador</strong>Os dados ficam só neste celular. Depois você cria outras contas em “Minha conta”.</div>
+    </div>
+    <label class="campo"><span>Seu nome</span>
+      <input class="form-control" name="nome" autocomplete="name" autofocus required value="{{ request.form.get('nome', '') }}">
+    </label>
+    <label class="campo"><span>Usuário (para entrar)</span>
+      <input class="form-control" name="login" autocomplete="username" autocapitalize="none" spellcheck="false" required value="{{ request.form.get('login', '') }}">
+    </label>
+    <label class="campo"><span>Senha (mín. {{ senha_min }} caracteres)</span>
+      <input class="form-control" name="senha" type="password" autocomplete="new-password" minlength="{{ senha_min }}" required>
+    </label>
+    <label class="campo"><span>Repita a senha</span>
+      <input class="form-control" name="repetir" type="password" autocomplete="new-password" required>
+    </label>
+    {% else %}
+    {% if sem_usuarios %}
+    <div class="alerta-box laranja"><i class="bi bi-terminal"></i>
+      <div><strong>Nenhum usuário criado ainda</strong>No terminal, rode <code>python app.py criar-usuario seu-login</code>.</div>
+    </div>
+    {% endif %}
+    <label class="campo"><span>Usuário</span>
+      <input class="form-control" name="login" autocomplete="username" autocapitalize="none" autofocus required value="{{ request.form.get('login', '') }}">
+    </label>
+    <label class="campo"><span>Senha</span>
+      <input class="form-control" name="senha" type="password" autocomplete="current-password" required>
+    </label>
+    {% endif %}
+    {% if erro %}<div class="alerta-box vermelho sacudir" role="alert"><i class="bi bi-exclamation-octagon"></i><div>{{ erro }}</div></div>{% endif %}
+    {% if primeira_vez %}
+    <button class="btn btn-ouro btn-lg"><i class="bi bi-person-check"></i> Criar conta e entrar</button>
+    {% else %}
+    <button class="btn btn-ouro btn-lg"><i class="bi bi-box-arrow-in-right"></i> Entrar</button>
+    {% endif %}
+  </form>
+</body>
+</html>

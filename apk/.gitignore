@@ -1,0 +1,8 @@
+# Build (os intermediários já vão para %LOCALAPPDATA%\CoroinhasApk) e ferramentas locais
+.gradle/
+build/
+local.properties
+*.apk
+
+# Chave de assinatura: NÃO publique, mas guarde uma cópia (sem ela não dá para atualizar o app sem perder os dados)
+assinatura/

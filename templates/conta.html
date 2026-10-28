@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% from "coroinhas/_macros.html" import cabecalho %}
+{% block titulo %}Minha conta{% endblock %}
+
+{% block conteudo %}
+{{ cabecalho("Minha conta", usuario.nome ~ " · usuário " ~ usuario.login ~ " · " ~ ("Coordenador(a)" if usuario.coordenador else "Equipe")) }}
+
+<div class="grade-ajustes mb-4">
+  <section class="cartao cartao-pad entrar" style="--i:1">
+    <h2>🔑 Trocar minha senha</h2>
+    <p>Ao trocar, os outros aparelhos onde você está logado saem da conta. Mínimo de {{ senha_min }} caracteres.</p>
+    <form id="formSenha" class="d-flex flex-column gap-3" novalidate>
+      <input type="text" name="login" value="{{ usuario.login }}" autocomplete="username" hidden>
+      <label class="campo"><span>Senha atual</span><input class="form-control" type="password" name="atual" autocomplete="current-password" required></label>
+      <label class="campo"><span>Nova senha</span><input class="form-control" type="password" name="nova" autocomplete="new-password" minlength="{{ senha_min }}" required></label>
+      <label class="campo"><span>Repita a nova senha</span><input class="form-control" type="password" name="repetir" autocomplete="new-password" required></label>
+      <div class="text-danger small" id="senhaErro" role="alert"></div>
+      <div><button class="btn btn-azul"><i class="bi bi-check-lg"></i> Trocar senha</button></div>
+    </form>
+  </section>
+
+  {% if not usuario.coordenador %}
+  <section class="cartao cartao-pad entrar" style="--i:2">
+    <h2>👥 Contas de acesso</h2>
+    <p>Para criar uma conta nova, trocar o nome ou recuperar uma senha esquecida, fale com a coordenação.</p>
+  </section>
+  {% endif %}
+</div>
+
+{% if usuario.coordenador %}
+<section class="cartao cartao-pad entrar" style="--i:2">
+  <div class="titulo-secao">
+    <h2><i class="bi bi-people"></i> Contas de acesso</h2>
+    <button type="button" class="btn btn-azul" data-nova><i class="bi bi-person-plus-fill"></i> Nova conta</button>
+  </div>
+  <p class="text-secondary">Coordenadores criam, editam e removem contas e redefinem senhas esquecidas. Os demais usam o sistema normalmente e só trocam a própria senha.</p>
+  <ul class="lista-contas">
+    {% for c in contas %}
+    <li>
+      <span class="avatar" style="--tam:38px;background:{{ 'var(--ouro)' if c.coordenador else 'var(--azul-600)' }}" aria-hidden="true">{{ c.nome[:1]|upper }}</span>
+      <div class="info">
+        <strong>{{ c.nome }}</strong>
+        <small>{{ c.login }}</small>
+      </div>
+      <span class="tag {{ 'tag-ouro' if c.coordenador else 'tag-azul' }}">{{ 'Coordenador(a)' if c.coordenador else 'Equipe' }}</span>
+      {% if c.id == usuario.id %}<span class="tag tag-cinza">você</span>{% endif %}
+      <button type="button" class="btn-icone" data-editar="{{ c.id }}" aria-label="Editar {{ c.nome }}"><i class="bi bi-pencil"></i></button>
+      <button type="button" class="btn-icone perigo" data-remover="{{ c.id }}" aria-label="Remover {{ c.nome }}" {% if c.id == usuario.id %}disabled{% endif %}><i class="bi bi-trash3"></i></button>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+
+<!-- Criar / editar conta -->
+<div class="modal fade" id="modalConta" tabindex="-1" aria-labelledby="contaTitulo" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form class="modal-content" id="formConta" novalidate autocomplete="off">
+      <div class="modal-header">
+        <h2 class="modal-title" id="contaTitulo">Nova conta</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <div class="grade-form">
+          <label class="campo inteiro"><span>Nome</span><input class="form-control" name="nome" maxlength="120" required></label>
+          <label class="campo inteiro"><span>Usuário (para entrar)</span>
+            <input class="form-control" name="login" maxlength="40" autocapitalize="none" spellcheck="false" placeholder="ex.: joana" required>
+            <small>Letras minúsculas, números, ponto, hífen ou _. Não muda depois de criado.</small></label>
+          <div class="campo inteiro" id="blocoSenha">
+            <span id="rotuloSenha">Senha</span>
+            <div class="d-flex gap-2">
+              <input class="form-control" name="senha" id="campoSenha" type="text" minlength="{{ senha_min }}" autocomplete="new-password" spellcheck="false">
+              <button type="button" class="btn btn-contorno text-nowrap" id="btnGerar"><i class="bi bi-shuffle"></i> Gerar</button>
+            </div>
+            <small id="dicaSenha">Mínimo de {{ senha_min }} caracteres. Passe a senha para a pessoa; ela pode trocar depois em “Minha conta”.</small>
+          </div>
+          <label class="check-linha inteiro"><input type="checkbox" name="coordenador"> Coordenador(a) — pode gerenciar as contas</label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <div class="text-danger small me-auto" id="contaErro" role="alert"></div>
+        <button type="button" class="btn btn-contorno" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-azul"><i class="bi bi-check-lg"></i> Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>window.CONTA = {{ {"eu": usuario.id, "contas": contas, "senha_min": senha_min}|tojson }};</script>
+<script src="{{ url_for('static', filename='js/conta.js') }}"></script>
+{% endblock %}

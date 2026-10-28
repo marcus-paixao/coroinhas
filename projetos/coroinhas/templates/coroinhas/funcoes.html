@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% from "coroinhas/_macros.html" import cabecalho, vazio %}
+{% block titulo %}Funções & Missas{% endblock %}
+
+{% block conteudo %}
+{{ cabecalho("Funções & Missas", "As funções do altar e as missas fixas que viram a escala de cada semana.") }}
+
+<section class="cartao cartao-pad mb-4 entrar" style="--i:1">
+  <div class="titulo-secao">
+    <h2>🕯️ Funções</h2>
+    <button type="button" class="btn btn-suave btn-sm" data-nova-funcao><i class="bi bi-plus-lg"></i> Nova função</button>
+  </div>
+  <div class="grade-funcoes">
+    {% for f in funcoes %}
+    <div class="funcao-card entrar" style="--cor:{{ f.cor }};--i:{{ loop.index }}">
+      <span class="emoji">{{ f.emoji }}</span>
+      <strong>{{ f.nome }}</strong>
+      <button type="button" class="btn-icone" data-editar-funcao="{{ f.id }}" aria-label="Editar {{ f.nome }}"><i class="bi bi-pencil"></i></button>
+      <button type="button" class="btn-icone perigo" data-remover-funcao="{{ f.id }}" aria-label="Remover {{ f.nome }}"><i class="bi bi-trash3"></i></button>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+
+<div class="titulo-secao entrar" style="--i:2">
+  <h2 style="font-size:21px">⛪ Missas fixas da semana</h2>
+  <button type="button" class="btn btn-azul btn-sm" data-novo-horario><i class="bi bi-plus-lg"></i> Nova missa fixa</button>
+</div>
+{% if not horarios %}
+<div class="cartao">{{ vazio("🕰️", "Nenhuma missa fixa") }}</div>
+{% else %}
+<div class="horarios">
+  {% for h in horarios %}
+  <article class="cartao horario-card entrar" style="--i:{{ loop.index + 2 }}">
+    <header class="missa-topo">
+      <span class="missa-hora">{{ regras.formatar_hora(h.hora) }}</span>
+      <div class="missa-dia"><strong>{{ regras.DIAS[h.dia_semana] }}</strong>
+        <span>{{ h.vagas|length }} vagas · {{ h.reservas }} reservas{% if h.titulo %} · {{ h.titulo }}{% endif %}</span></div>
+      <div class="acoes">
+        <button type="button" class="btn-icone" data-editar-horario="{{ h.id }}" aria-label="Editar missa fixa"><i class="bi bi-pencil"></i></button>
+        <button type="button" class="btn-icone" data-remover-horario="{{ h.id }}" aria-label="Remover missa fixa"><i class="bi bi-trash3"></i></button>
+      </div>
+    </header>
+    <ol>
+      {% for v in h.vagas %}
+      <li>{% for fid in v if fid in funcoes_por_id %}{{ funcoes_por_id[fid].nome }}{{ " / " if not loop.last }}{% else %}<em class="text-secondary">sem função</em>{% endfor %}</li>
+      {% endfor %}
+    </ol>
+  </article>
+  {% endfor %}
+</div>
+{% endif %}
+<p class="small mt-3" style="color:var(--texto-3)">Mudar uma missa fixa vale para as próximas escalas criadas. As missas já montadas não mudam — edite-as na tela de Escala.</p>
+
+<!-- Função -->
+<div class="modal fade" id="modalFuncao" tabindex="-1" aria-labelledby="funcaoTitulo" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form class="modal-content" id="formFuncao" novalidate>
+      <div class="modal-header">
+        <h2 class="modal-title" id="funcaoTitulo">Nova função</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <div class="grade-form">
+          <label class="campo inteiro"><span>Nome</span><input class="form-control" name="nome" maxlength="60" placeholder="Ex.: Missal, Microfone…" required></label>
+          <div class="campo inteiro"><span>Ícone</span>
+            <div class="escolhas" id="escolhaEmoji">{% for e in emojis %}<button type="button" data-valor="{{ e }}" aria-pressed="false">{{ e }}</button>{% endfor %}</div></div>
+          <div class="campo inteiro"><span>Cor</span>
+            <div class="escolhas cores" id="escolhaCor">{% for c in cores %}<button type="button" data-valor="{{ c }}" aria-pressed="false" aria-label="{{ c }}" style="background:{{ c }}"></button>{% endfor %}</div></div>
+          <div class="campo inteiro"><span>Prévia</span><div id="previaFuncao"></div></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <div class="text-danger small me-auto" id="funcaoErro" role="alert"></div>
+        <button type="button" class="btn btn-contorno" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-azul"><i class="bi bi-check-lg"></i> Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Missa fixa -->
+<div class="modal fade" id="modalHorario" tabindex="-1" aria-labelledby="horarioTitulo" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <form class="modal-content" id="formHorario" novalidate>
+      <div class="modal-header">
+        <h2 class="modal-title" id="horarioTitulo">Nova missa fixa</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <div class="grade-form">
+          <label class="campo"><span>Dia da semana</span>
+            <select class="form-select" name="dia_semana">{% for d in regras.DIAS %}<option value="{{ loop.index0 }}">{{ d }}</option>{% endfor %}</select></label>
+          <label class="campo"><span>Horário</span><input class="form-control" type="time" name="hora" required></label>
+          <label class="campo inteiro"><span>Título (opcional)</span><input class="form-control" name="titulo" maxlength="120" placeholder="Ex.: Missa das crianças"></label>
+          <div class="campo inteiro"><span>Vagas — marque as funções de cada coroinha</span><div id="editorVagasHorario"></div></div>
+          <label class="campo"><span>Quantidade de reservas</span><input class="form-control" type="number" name="reservas" min="0" max="20"></label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <div class="text-danger small me-auto" id="horarioErro" role="alert"></div>
+        <button type="button" class="btn btn-contorno" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-azul"><i class="bi bi-check-lg"></i> Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>window.FUNCOES = {{ funcoes|tojson }}; window.HORARIOS = {{ horarios|tojson }};</script>
+<script src="{{ url_for('coroinhas.static', filename='js/editor_vagas.js') }}"></script>
+<script src="{{ url_for('coroinhas.static', filename='js/funcoes.js') }}"></script>
+{% endblock %}

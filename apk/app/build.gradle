@@ -1,0 +1,79 @@
+plugins {
+    id 'com.android.application'
+    id 'com.chaquo.python'
+}
+
+// O sistema web (app.py, acesso.py, projetos/, templates/, static/) vai dentro do APK num .zip,
+// que o app descompacta na 1ª abertura de cada versão. Assim o APK usa sempre o mesmo código do site.
+def raizSistema = rootProject.projectDir.parentFile
+def assetsGerados = layout.buildDirectory.dir('gerado/assets')
+
+tasks.register('empacotarSistema', Zip) {
+    from(raizSistema) {
+        include 'app.py', 'acesso.py', 'projetos/**', 'templates/**', 'static/**'
+        exclude '**/__pycache__/**', '**/*.pyc'
+    }
+    archiveFileName = 'sistema.zip'
+    destinationDirectory = assetsGerados
+}
+preBuild.dependsOn 'empacotarSistema'
+
+// Assinatura própria (apk/assinatura/), criada pelo construir.ps1. Guarde essa pasta:
+// sem ela não dá para instalar uma versão nova por cima da antiga (e desinstalar apaga os dados do celular).
+def arqAssinatura = rootProject.file('assinatura/assinatura.properties')
+def assinatura = new Properties()
+if (arqAssinatura.exists()) arqAssinatura.withInputStream { assinatura.load(it) }
+
+android {
+    namespace 'br.org.coroinhas.lourdes'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'br.org.coroinhas.lourdes'
+        minSdk 30
+        targetSdk 35
+        // versão automática pela data do build: cada APK novo é "mais novo" e instala por cima do anterior
+        versionCode((int) (System.currentTimeMillis().intdiv(60000L) - 29_000_000L))   // minutos desde out/2025
+        versionName new java.text.SimpleDateFormat('yyyy.MM.dd HH:mm').format(new Date())
+        ndk { abiFilters 'arm64-v8a' }       // Galaxy S25 Ultra (e praticamente todo Android atual)
+    }
+
+    sourceSets {
+        main.assets.srcDir assetsGerados
+    }
+
+    signingConfigs {
+        if (arqAssinatura.exists()) {
+            release {
+                storeFile rootProject.file("assinatura/${assinatura['arquivo']}")
+                storePassword assinatura['senha']
+                keyAlias assinatura['alias']
+                keyPassword assinatura['senha']
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (arqAssinatura.exists()) signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+chaquopy {
+    defaultConfig {
+        version '3.11'
+        pip {
+            // mesmas versões do .venv do PC (o python-calamine não existe para Android: lá a planilha usa o openpyxl)
+            install 'Flask==3.1.3'
+            install 'Werkzeug==3.1.9'
+            install 'openpyxl==3.1.5'
+        }
+    }
+}
