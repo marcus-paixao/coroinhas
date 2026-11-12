@@ -9,7 +9,7 @@ from pathlib import Path
 
 from flask import Response, abort, g, jsonify, render_template, request
 
-from . import ABAS, bp, regras
+from . import ABAS, bp, liturgia as mod_liturgia, regras
 from .padrao import CORES, EMOJIS
 from .planilha import ler_planilha
 from .repositorio import ErroCoroinhas, RepositorioCoroinhas
@@ -105,6 +105,34 @@ def escala():
     return render_template("coroinhas/escala.html", aba="escala", dados=_payload_semana(_semana(request.args.get("semana"))))
 
 
+@bp.get("/liturgia")
+def liturgia():
+    seg = _semana(request.args.get("semana"))
+    todos = request.args.get("todos") == "1"
+    missas = repo.missas_entre(seg, seg + timedelta(days=6))
+    if todos:
+        datas = [(seg + timedelta(days=i)).isoformat() for i in range(7)]
+    else:
+        datas = sorted({m["data"] for m in missas}) or [
+            (seg + timedelta(days=5)).isoformat(),
+            (seg + timedelta(days=6)).isoformat(),
+        ]
+    hoje = date.today()
+    return render_template(
+        "coroinhas/liturgia.html",
+        aba="liturgia",
+        semana=seg.isoformat(),
+        anterior=(seg - timedelta(days=7)).isoformat(),
+        proxima=(seg + timedelta(days=7)).isoformat(),
+        atual=regras.inicio_semana(hoje).isoformat(),
+        titulo=regras.titulo_semana(seg, [m["data"] for m in missas]),
+        distancia=regras.distancia_semana(seg, hoje),
+        todos=todos,
+        dias=repo.liturgias_datas(datas),
+        cores_liturgicas=list(mod_liturgia.CORES_LITURGICAS.keys()),
+    )
+
+
 @bp.get("/membros")
 def equipe():
     hoje = date.today()
@@ -172,6 +200,9 @@ def _payload_semana(seg: date) -> dict:
         },
         "horarios_faltando": repo.horarios_faltando(seg),
         "tem_semana_anterior": bool(repo.missas_entre(seg - timedelta(days=7), seg - timedelta(days=1))),
+        "liturgias": repo.liturgias_datas(
+            sorted({m["data"] for m in missas}) or [(seg + timedelta(days=5)).isoformat(), (seg + timedelta(days=6)).isoformat()]
+        ),
     }
 
 
@@ -323,3 +354,13 @@ def api_config():
 def api_apagar_tudo():
     repo.apagar_tudo(_quem())
     return jsonify({"ok": True})
+
+
+@bp.put("/api/liturgia/<data_iso>")
+def api_liturgia_salvar(data_iso: str):
+    return jsonify({"liturgia": repo.salvar_liturgia(data_iso, _corpo(), _quem())})
+
+
+@bp.post("/api/liturgia/<data_iso>/atualizar")
+def api_liturgia_atualizar(data_iso: str):
+    return jsonify({"liturgia": repo.obter_liturgia(data_iso, forcar_api=True)})

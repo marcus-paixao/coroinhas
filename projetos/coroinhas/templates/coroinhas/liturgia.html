@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% from "coroinhas/_macros.html" import cabecalho, icone_paramento, vazio %}
+{% block titulo %}Liturgia {{ titulo }}{% endblock %}
+
+{% block conteudo %}
+{% call cabecalho("Liturgia da Escala", "Cor dos paramentos, tempo litúrgico e leituras da Santa Missa.") %}
+  <div class="semana-nav">
+    <a class="btn-icone" href="{{ url_for('coroinhas.liturgia', semana=anterior, todos='1' if todos else None) }}" aria-label="Semana anterior"><i class="bi bi-chevron-left"></i></a>
+    <div class="rotulo"><span>{{ titulo }}</span><small>{{ distancia }}</small></div>
+    <a class="btn-icone" href="{{ url_for('coroinhas.liturgia', semana=proxima, todos='1' if todos else None) }}" aria-label="Próxima semana"><i class="bi bi-chevron-right"></i></a>
+    {% if semana != atual %}<a class="btn btn-suave btn-sm" href="{{ url_for('coroinhas.liturgia', todos='1' if todos else None) }}">Hoje</a>{% endif %}
+  </div>
+{% endcall %}
+
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 entrar" style="--i:1">
+  <div class="segmentado" role="tablist">
+    <a href="{{ url_for('coroinhas.liturgia', semana=semana) }}" class="btn-seg {% if not todos %}ativo{% endif %}">Dias da escala</a>
+    <a href="{{ url_for('coroinhas.liturgia', semana=semana, todos='1') }}" class="btn-seg {% if todos %}ativo{% endif %}">Semana inteira (Seg–Dom)</a>
+  </div>
+  <a class="btn btn-contorno btn-sm" href="{{ url_for('coroinhas.escala', semana=semana) }}"><i class="bi bi-calendar-week"></i> Ver escala desta semana</a>
+</div>
+
+<div class="grade-liturgia">
+  {% for d in dias %}
+  <article class="cartao cartao-pad card-liturgia entrar" id="dia-{{ d.data }}" style="--i:{{ loop.index + 1 }}">
+    <div class="liturgia-cabecalho">
+      <div class="liturgia-paramento-wrap">
+        {{ icone_paramento(d, 54, 76) }}
+      </div>
+      <div class="liturgia-info">
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
+          <span class="liturgia-data">{{ d.dia_nome }}, {{ d.data_extenso }}</span>
+          <span class="tag-cor-liturgica" style="--cor-lit:{{ d.cor_hex }};--borda-lit:{{ d.cor_borda }}">Paramento {{ d.cor }}</span>
+        </div>
+        <h2 class="liturgia-celebracao">{{ d.titulo }}</h2>
+      </div>
+      <div class="liturgia-acoes">
+        <button type="button" class="btn-icone" data-atualizar="{{ d.data }}" title="Atualizar leituras da CNBB" aria-label="Atualizar leituras de {{ d.data_curta }}"><i class="bi bi-arrow-clockwise"></i></button>
+        <button type="button" class="btn-icone" data-editar="{{ d.data }}" title="Editar liturgia do dia" aria-label="Editar liturgia de {{ d.data_curta }}"><i class="bi bi-pencil"></i></button>
+      </div>
+    </div>
+
+    <div class="liturgia-leituras-bloco">
+      <h3 class="liturgia-subtitulo">Leituras:</h3>
+      {% if d.leituras %}
+      <ul class="lista-referencias-liturgia">
+        {% for l in d.leituras %}
+        <li>
+          <span class="tipo-leitura">{{ l.tipo }}:</span>
+          <strong class="ref-leitura">{{ l.referencia }}</strong>
+          {% if l.refrao %}<small class="refrao-salmo">R. {{ l.refrao }}</small>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+
+      {% if d.leituras|selectattr('texto')|list %}
+      <details class="liturgia-textos mt-3">
+        <summary><i class="bi bi-book-half"></i> Ler textos completos das leituras</summary>
+        <div class="liturgia-textos-corpo">
+          {% for l in d.leituras if l.texto %}
+          <div class="leitura-completa">
+            <h4>{{ l.tipo }} — {{ l.referencia }}</h4>
+            {% if l.titulo %}<p class="leitura- anunciacao"><em>{{ l.titulo }}</em></p>{% endif %}
+            {% if l.refrao %}<p class="leitura-refrao"><strong>Refrão:</strong> {{ l.refrao }}</p>{% endif %}
+            <div class="leitura-paragrafos">{{ l.texto }}</div>
+          </div>
+          {% endfor %}
+        </div>
+      </details>
+      {% endif %}
+      {% else %}
+      <p class="text-secondary small mb-0">
+        As leituras deste dia ainda não foram carregadas.
+        <button type="button" class="btn btn-suave btn-sm ms-1" data-atualizar="{{ d.data }}"><i class="bi bi-cloud-download"></i> Buscar leituras</button>
+        <button type="button" class="btn btn-contorno btn-sm ms-1" data-editar="{{ d.data }}"><i class="bi bi-pencil"></i> Preencher manualmente</button>
+      </p>
+      {% endif %}
+    </div>
+  </article>
+  {% endfor %}
+</div>
+
+<!-- Modal Editar Liturgia -->
+<div class="modal fade" id="modalLiturgia" tabindex="-1" aria-labelledby="liturgiaModalTitulo" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <form class="modal-content" id="formLiturgia" novalidate>
+      <div class="modal-header">
+        <h2 class="modal-title" id="liturgiaModalTitulo">Editar Liturgia</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+      </div>
+      <div class="modal-body">
+        <div class="grade-form">
+          <label class="campo inteiro">
+            <span>Celebração / Tempo Litúrgico</span>
+            <input class="form-control" name="titulo" maxlength="200" required placeholder="Ex.: 32ª Semana do Tempo Comum, Ano Par (II)">
+          </label>
+          <label class="campo inteiro">
+            <span>Cor do Paramento</span>
+            <select class="form-select" name="cor">
+              {% for c in cores_liturgicas %}
+              <option value="{{ c }}">{{ c }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="campo">
+            <span>1ª Leitura (referência)</span>
+            <input class="form-control" name="ref_1" maxlength="120" placeholder="Ex.: 3Jo 1,5-8">
+          </label>
+          <label class="campo">
+            <span>Salmo (referência)</span>
+            <input class="form-control" name="ref_salmo" maxlength="120" placeholder="Ex.: Sl 111(112),1-2.3-4.5-6 (R. 1)">
+          </label>
+          <label class="campo inteiro">
+            <span>Refrão do Salmo (opcional)</span>
+            <input class="form-control" name="refrao_salmo" maxlength="300" placeholder="Ex.: Feliz o homem que respeita o Senhor!">
+          </label>
+          <label class="campo">
+            <span>2ª Leitura (domingos/solenidades)</span>
+            <input class="form-control" name="ref_2" maxlength="120" placeholder="Deixe em branco se não houver">
+          </label>
+          <label class="campo">
+            <span>Evangelho (referência)</span>
+            <input class="form-control" name="ref_evangelho" maxlength="120" placeholder="Ex.: Lc 18,1-8">
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <div class="text-danger small me-auto" id="liturgiaErro" role="alert"></div>
+        <button type="button" class="btn btn-contorno" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" class="btn btn-azul"><i class="bi bi-check-lg"></i> Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>window.LITURGIAS = {{ dias|tojson }};</script>
+<script src="{{ url_for('coroinhas.static', filename='js/liturgia.js') }}"></script>
+{% endblock %}

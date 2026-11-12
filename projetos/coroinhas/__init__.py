@@ -13,6 +13,7 @@ PROJETO = {
 ABAS = [
     ("painel", "Painel", "Painel", "bi-grid-1x2-fill"),
     ("escala", "Escala", "Escala", "bi-calendar-week-fill"),
+    ("liturgia", "Liturgia", "Liturgia", "bi-book-half"),
     ("equipe", "Coroinhas", "Equipe", "bi-people-fill"),
     ("funcoes", "Funções & Missas", "Funções", "bi-bell-fill"),
     ("ajustes", "Ajustes & Backup", "Ajustes", "bi-gear-fill"),

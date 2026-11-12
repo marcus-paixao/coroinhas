@@ -16,3 +16,18 @@
   {% if caller %}<div class="d-flex flex-wrap gap-2 align-items-center">{{ caller() }}</div>{% endif %}
 </div>
 {%- endmacro %}
+
+{% macro icone_paramento(lit, larg=44, alt=62) -%}
+<svg class="icone-paramento" width="{{ larg }}" height="{{ alt }}" viewBox="0 0 44 62" role="img" aria-label="Cor litúrgica: {{ lit.cor }}">
+  <rect x="2" y="2" width="40" height="49" rx="2.5" fill="{{ lit.cor_hex }}" stroke="{{ lit.cor_borda }}" stroke-width="1.2"/>
+  <g fill="none" stroke="{{ lit.cor_simbolo }}" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M22 11v29M19.2 11h5.8a4.5 4.5 0 0 1 0 9H22M19 40h6" stroke-width="2.3"/>
+    <path d="M13 20l18 16M31 20L13 36" stroke-width="2.1"/>
+  </g>
+  <text x="11.2" y="30.5" fill="{{ lit.cor_simbolo }}" font-size="7.5" font-weight="800" font-family="serif" text-anchor="middle">Α</text>
+  <text x="32.8" y="30.5" fill="{{ lit.cor_simbolo }}" font-size="7.5" font-weight="800" font-family="serif" text-anchor="middle">Ω</text>
+  <rect x="2" y="49" width="40" height="3.2" fill="#f5c451"/>
+  <rect x="2" y="52.2" width="40" height="7.8" rx="1" fill="#dda131"/>
+  <path d="M5 52.2V60M8.5 52.2V60M12 52.2V60M15.5 52.2V60M19 52.2V60M22.5 52.2V60M26 52.2V60M29.5 52.2V60M33 52.2V60M36.5 52.2V60M40 52.2V60" stroke="#a66f10" stroke-width="1"/>
+</svg>
+{%- endmacro %}

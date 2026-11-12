@@ -4,6 +4,7 @@ import tempfile
 from datetime import date, timedelta
 
 os.environ["COROINHAS_DADOS"] = tempfile.mkdtemp(prefix="coroinhas-teste-")   # antes de importar o app
+os.environ["COROINHAS_OFFLINE"] = "1"
 
 import pytest  # noqa: E402
 
@@ -143,7 +144,7 @@ def test_banco_antigo_vira_coordenador(tmp_path):
     assert acesso.Usuarios(tmp_path / "u.db").listar()[0]["coordenador"] is True
 
 
-@pytest.mark.parametrize("pagina", ["/", "/escala", "/membros", "/funcoes", "/ajustes", "/conta"])
+@pytest.mark.parametrize("pagina", ["/", "/escala", "/liturgia", "/membros", "/funcoes", "/ajustes", "/conta"])
 def test_paginas_abrem(cliente, pagina):
     novo_membro(cliente, "Lívia Exemplo Teste", nascimento="2014-04-15")
     cliente.post(f"{API}/semana/gerar", json={"semana": date.today().isoformat()})
@@ -269,3 +270,26 @@ def test_regras():
     assert regras.dias_para_aniversario("2014-04-15", date(2026, 4, 15)) == 0
     assert regras.dias_para_aniversario("2012-02-29", date(2026, 3, 2)) == 364
     assert regras.formatar_hora("18:30") == "18h30" and regras.formatar_hora("10:00") == "10h"
+
+
+def test_liturgia(cliente):
+    from projetos.coroinhas import liturgia
+    sab = liturgia.calcular_calendario(date(2026, 11, 14))
+    assert sab["titulo"] == "32ª Semana do Tempo Comum, Ano Par (II)" and sab["cor"] == "Verde"
+    dom = liturgia.calcular_calendario(date(2026, 11, 15))
+    assert dom["titulo"] == "33º Domingo do Tempo Comum, Ano A" and dom["cor"] == "Verde"
+
+    r = cliente.put(f"{API}/liturgia/2026-11-14", json={
+        "titulo": "32ª Semana do Tempo Comum, Ano Par (II)",
+        "cor": "Verde",
+        "leituras": [
+            {"tipo": "1ª Leitura", "referencia": "3Jo 1,5-8"},
+            {"tipo": "Salmo", "referencia": "Sl 111(112),1-2.3-4.5-6 (R. 1)"},
+            {"tipo": "Evangelho", "referencia": "Lc 18,1-8"},
+        ],
+    })
+    assert r.status_code == 200
+    dados = r.get_json()["liturgia"]
+    assert dados["resumo_leituras"] == ["3Jo 1,5-8", "Sl 111(112),1-2.3-4.5-6 (R. 1)", "Lc 18,1-8"]
+    html = cliente.get("/liturgia?semana=2026-11-09").get_data(as_text=True)
+    assert "3Jo 1,5-8" in html and "Lc 18,1-8" in html

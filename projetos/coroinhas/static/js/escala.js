@@ -3,10 +3,11 @@
   "use strict";
 
   const A = window.App;
-  const { el, esc, avatar, chipFuncao, dataCurta, formatarHora, diaSemana, rotuloMissa, estaAusente, normalizar } = A;
+  const { el, esc, avatar, chipFuncao, iconeLiturgia, dataCurta, formatarHora, diaSemana, rotuloMissa, estaAusente, normalizar } = A;
   let D = window.ESCALA;                 // estado da semana vindo de /api/semana
   let porId = new Map();                 // membro por id
   let funcoes = new Map();               // função por id
+  let liturgias = new Map();             // liturgia por data ISO
   let alvo = null;                       // vaga sendo preenchida: { escala, missa, atual, titulo }
   let missaEditando = null;              // id da missa no modal (null = nova)
 
@@ -19,6 +20,7 @@
   function indexar() {
     porId = new Map(D.membros.map((m) => [m.id, m]));
     funcoes = new Map(D.funcoes.map((f) => [f.id, f]));
+    liturgias = new Map((D.liturgias || []).map((l) => [l.data, l]));
   }
 
   async function recarregar(destacar = null) {
@@ -35,9 +37,32 @@
     indexar();
     el("tituloSemana").textContent = D.titulo;
     renderAcoes();
+    renderLiturgia();
     renderMissas(destacar);
     renderLateral();
     atualizarBadge();
+  }
+
+  function renderLiturgia() {
+    const caixa = el("liturgiaSemana");
+    if (!caixa) return;
+    const lista = D.liturgias || [];
+    if (!lista.length) { caixa.innerHTML = ""; return; }
+    caixa.innerHTML = lista.map((l, i) => {
+      const refs = (l.resumo_leituras || []).join(" · ");
+      return `<a href="${window.API}/liturgia?semana=${D.semana}#dia-${l.data}" class="cartao liturgia-resumo entrar" style="--i:${i + 1}" title="Abrir Liturgia completa">
+        ${iconeLiturgia(l, 38, 54)}
+        <div class="liturgia-resumo-corpo">
+          <div class="liturgia-resumo-topo">
+            <strong>${esc(l.dia_nome)} ${esc(l.data_curta)}</strong>
+            <span class="tag-cor-liturgica" style="--cor-lit:${esc(l.cor_hex)};--borda-lit:${esc(l.cor_borda)}">${esc(l.cor)}</span>
+          </div>
+          <div class="liturgia-resumo-titulo">${esc(l.titulo)}</div>
+          ${refs ? `<div class="liturgia-resumo-leituras"><i class="bi bi-book"></i> <strong>Leituras:</strong> ${esc(refs)}</div>` : ""}
+        </div>
+        <i class="bi bi-chevron-right liturgia-seta" aria-hidden="true"></i>
+      </a>`;
+    }).join("");
   }
 
   function renderAcoes() {

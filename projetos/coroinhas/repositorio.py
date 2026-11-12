@@ -14,7 +14,7 @@ from contextlib import closing, contextmanager
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from . import regras
+from . import liturgia, regras
 from .padrao import CONFIG_PADRAO, FUNCOES_PADRAO, HORARIOS_PADRAO
 
 
@@ -52,6 +52,8 @@ CREATE INDEX IF NOT EXISTS ix_escalas_missa ON escalas(missa_id);
 CREATE TABLE IF NOT EXISTS config (chave TEXT PRIMARY KEY, valor TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS historico (
     id INTEGER PRIMARY KEY AUTOINCREMENT, quando TEXT, usuario TEXT, acao TEXT, descricao TEXT);
+CREATE TABLE IF NOT EXISTS liturgias (
+    data TEXT PRIMARY KEY, dados TEXT NOT NULL, atualizado TEXT);
 """
 
 
@@ -552,3 +554,68 @@ class RepositorioCoroinhas:
 
     def apagar_tudo(self, usuario: str = "") -> None:
         self.restaurar({"membros": []}, usuario=usuario, origem="recomeço do zero")
+
+    # ------------------------------------------------------------------ liturgia
+    def obter_liturgia(self, data_iso: str, forcar_api: bool = False) -> dict:
+        data_iso = _data(data_iso, "Data", True)
+        d = date.fromisoformat(data_iso)
+        if not forcar_api:
+            with closing(self._con()) as con:
+                r = con.execute("SELECT dados FROM liturgias WHERE data = ?", (data_iso,)).fetchone()
+            if r:
+                salvo = json.loads(r["dados"])
+                if salvo.get("leituras") or salvo.get("fonte") == "manual":
+                    return liturgia.enriquecer(salvo)
+
+        da_api = liturgia._consultar_api_cnbb(d)
+        if da_api:
+            with self._tx() as con:
+                con.execute(
+                    "INSERT INTO liturgias (data, dados, atualizado) VALUES (?, ?, ?) "
+                    "ON CONFLICT(data) DO UPDATE SET dados = excluded.dados, atualizado = excluded.atualizado",
+                    (data_iso, json.dumps(da_api, ensure_ascii=False), datetime.now().isoformat(timespec="seconds")),
+                )
+            return liturgia.enriquecer(da_api)
+
+        return liturgia.enriquecer(liturgia.liturgia_padrao(d))
+
+    def liturgias_datas(self, datas: list[str]) -> list[dict]:
+        vistas = sorted(set(datas))
+        return [self.obter_liturgia(dt) for dt in vistas]
+
+    def salvar_liturgia(self, data_iso: str, d: dict, usuario: str = "") -> dict:
+        data_iso = _data(data_iso, "Data", True)
+        dt = date.fromisoformat(data_iso)
+        cal = liturgia.calcular_calendario(dt)
+        titulo = _texto(d.get("titulo"), "Celebração / Tempo litúrgico", 200, True)
+        cor = liturgia._normalizar_cor(d.get("cor"), cal["cor"])
+        leituras_limpas = []
+        for item in d.get("leituras") or []:
+            if not isinstance(item, dict):
+                continue
+            ref = _texto(item.get("referencia"), "Referência", 120)
+            if not ref:
+                continue
+            leituras_limpas.append({
+                "tipo": _texto(item.get("tipo") or "Leitura", "Tipo", 40, True),
+                "referencia": ref,
+                "titulo": _texto(item.get("titulo"), "Título da leitura", 200) or "",
+                "refrao": _texto(item.get("refrao"), "Refrão do salmo", 300) or "",
+                "texto": _texto(item.get("texto"), "Texto", 15000) or "",
+            })
+        reg = {
+            "data": data_iso,
+            "titulo": titulo,
+            "cor": cor,
+            "ciclo": cal["ciclo"],
+            "leituras": leituras_limpas,
+            "fonte": "manual",
+        }
+        with self._tx() as con:
+            con.execute(
+                "INSERT INTO liturgias (data, dados, atualizado) VALUES (?, ?, ?) "
+                "ON CONFLICT(data) DO UPDATE SET dados = excluded.dados, atualizado = excluded.atualizado",
+                (data_iso, json.dumps(reg, ensure_ascii=False), datetime.now().isoformat(timespec="seconds")),
+            )
+            self._log(con, usuario, "Liturgia", f"{regras.data_curta(data_iso)} ({cor}): {titulo}")
+        return liturgia.enriquecer(reg)
