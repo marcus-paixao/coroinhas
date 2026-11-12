@@ -78,7 +78,9 @@ def _chamar_gemini(mensagem: str, historico: list[dict]) -> str:
     from google import genai
     from google.genai import types
 
-    client = genai.Client(api_key=chave)
+    # Chaves "AQ...." são do Vertex AI Express Mode; chaves "AIza..." são do Google AI Studio
+    usar_vertex = chave.startswith("AQ.") or os.environ.get("GOOGLE_GENAI_USE_VERTEXAI") == "1"
+    client = genai.Client(vertexai=True, api_key=chave) if usar_vertex else genai.Client(api_key=chave)
     conteudos = []
     for item in historico:
         papel = "model" if item.get("role") == "model" else "user"
