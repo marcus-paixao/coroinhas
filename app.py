@@ -18,6 +18,7 @@ import sys
 from datetime import datetime, timedelta
 
 from flask import Flask, jsonify, redirect, request, url_for
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 import acesso
 from projetos import coroinhas
@@ -38,6 +39,7 @@ def _chave_secreta() -> str:
 
 
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 app.config.update(
     SECRET_KEY=_chave_secreta(),
     MAX_CONTENT_LENGTH=10 * 1024 * 1024,                         # 10 MB por arquivo
