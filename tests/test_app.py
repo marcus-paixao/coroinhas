@@ -12,7 +12,7 @@ from app import app  # noqa: E402
 from projetos.coroinhas import regras  # noqa: E402
 from projetos.coroinhas.rotas import repo  # noqa: E402
 
-API = "/coroinhas/api"
+API = "/api"
 SEGUNDA = date(2026, 10, 26)   # semana de 31/10 (sáb) e 01/11 (dom)
 
 
@@ -34,7 +34,7 @@ def novo_membro(c, nome, **extra):
 # ------------------------------------------------------------------ acesso
 def test_exige_login():
     c = app.test_client()
-    assert c.get("/coroinhas/").status_code == 302
+    assert c.get("/").status_code == 302
     assert c.get(f"{API}/semana").status_code == 401
 
 
@@ -93,7 +93,7 @@ def test_coordenador_gerencia_contas(cliente, equipe):
     assert joana.post(CONTAS, json={"login": "pedro", "nome": "Pedro", "senha": "12345678"}).status_code == 403
     assert joana.delete(f"{CONTAS}/{equipe['id']}").status_code == 403
     assert "Nova conta" not in joana.get("/conta").get_data(as_text=True)
-    assert joana.get("/coroinhas/").status_code == 200                         # usa o sistema normalmente
+    assert joana.get("/").status_code == 200                                    # usa o sistema normalmente
 
     # coordenador redefine a senha e promove: a sessão antiga da Joana cai
     r = cliente.put(f"{CONTAS}/{equipe['id']}", json={"nome": "Joana Silva", "coordenador": True, "senha": "senha-nova-99"})
@@ -143,7 +143,7 @@ def test_banco_antigo_vira_coordenador(tmp_path):
     assert acesso.Usuarios(tmp_path / "u.db").listar()[0]["coordenador"] is True
 
 
-@pytest.mark.parametrize("pagina", ["/coroinhas/", "/coroinhas/escala", "/coroinhas/equipe", "/coroinhas/funcoes", "/coroinhas/ajustes", "/conta"])
+@pytest.mark.parametrize("pagina", ["/", "/escala", "/membros", "/funcoes", "/ajustes", "/conta"])
 def test_paginas_abrem(cliente, pagina):
     novo_membro(cliente, "Lívia Exemplo Teste", nascimento="2014-04-15")
     cliente.post(f"{API}/semana/gerar", json={"semana": date.today().isoformat()})

@@ -105,7 +105,7 @@ def escala():
     return render_template("coroinhas/escala.html", aba="escala", dados=_payload_semana(_semana(request.args.get("semana"))))
 
 
-@bp.get("/equipe")
+@bp.get("/membros")
 def equipe():
     hoje = date.today()
     no_mes = regras.participacao(repo.missas_entre(*_mes_de(hoje)))

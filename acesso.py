@@ -166,7 +166,7 @@ def _logar(u: dict):
     session["usuario_id"] = u["id"]
     session["marca"] = u["marca"]
     session.permanent = True
-    return redirect(_destino_seguro(request.args.get("proximo")) or url_for("inicio"))
+    return redirect(_destino_seguro(request.args.get("proximo")) or "/")
 
 
 @bp.route("/entrar", methods=["GET", "POST"])

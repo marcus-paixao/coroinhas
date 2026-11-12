@@ -20,10 +20,9 @@ ABAS = [
 
 bp = Blueprint(
     "coroinhas", __name__,
-    url_prefix="/coroinhas",
     template_folder="templates",
     static_folder="static",
-    static_url_path="/static",
+    static_url_path="/coroinhas/static",
 )
 
 from . import rotas  # noqa: E402,F401  (registra as rotas no blueprint)

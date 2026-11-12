@@ -60,8 +60,9 @@ def _ctx():
     return {"ano": datetime.now().year, "projetos": PROJETOS, "projeto_atual": request.blueprint}
 
 
-@app.get("/")
-def inicio():
+@app.get("/coroinhas")
+@app.get("/coroinhas/<path:_resto>")
+def inicio(_resto: str = ""):
     return redirect(url_for(PROJETOS[0]["endpoint"]))
 
 
