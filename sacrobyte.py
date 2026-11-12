@@ -4,22 +4,30 @@ SacroByte — Assistente de IA do Portal Coroinhas (Google Gemini `gemini-2.5-fl
 from __future__ import annotations
 
 import os
+import re
 from datetime import date, timedelta
+from pathlib import Path
 
 from flask import Blueprint, jsonify, request, session
 
 from projetos.coroinhas import regras
 from projetos.coroinhas.rotas import repo
 
+ENV_PATH = Path(__file__).resolve().parent / ".env"
+
 try:
     from dotenv import load_dotenv
-    load_dotenv()
+    load_dotenv(ENV_PATH, override=True)
 except ImportError:
     pass
 
 bp = Blueprint("sacrobyte", __name__)
 
-MODELO_GEMINI = "gemini-2.5-flash"
+MODELOS_GEMINI = (
+    os.environ.get("GEMINI_MODEL") or "gemini-2.5-flash",
+    "gemini-3-flash-preview",
+    "gemini-2.5-flash-lite",
+)
 MAX_HISTORICO = 6          # últimas 6 mensagens na sessão (mantém o cookie leve)
 MAX_CHARS_HISTORICO = 360  # truncamento por item salvo no cookie de sessão
 
@@ -67,20 +75,40 @@ def _contexto_atual() -> str:
         return ""
 
 
+def _ler_chave() -> str:
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(ENV_PATH, override=True)
+    except ImportError:
+        if ENV_PATH.exists():
+            for linha in ENV_PATH.read_text(encoding="utf-8").splitlines():
+                linha = linha.strip()
+                if linha.startswith("GEMINI_API_KEY="):
+                    return linha.split("=", 1)[1].strip().strip("\"'")
+    return (os.environ.get("GEMINI_API_KEY") or "").strip()
+
+
+_CONFIG_FUNCIONANDO: tuple[bool, str] | None = None
+
+
 def _chamar_gemini(mensagem: str, historico: list[dict]) -> str:
-    chave = (os.environ.get("GEMINI_API_KEY") or "").strip()
+    global _CONFIG_FUNCIONANDO
+    chave = _ler_chave()
     if not chave:
         raise RuntimeError(
             "A chave `GEMINI_API_KEY` ainda não foi configurada! "
             "Adicione no arquivo `.env` (no PC) ou na aba **Variables** do Railway para ativar o SacroByte."
         )
 
-    from google import genai
-    from google.genai import types
+    try:
+        from google import genai
+        from google.genai import types
+    except ImportError:
+        raise RuntimeError(
+            "A biblioteca `google-genai` ainda não está instalada neste Python local. "
+            "Rode no terminal: `.\\.venv\\Scripts\\pip install -r requirements.txt`"
+        ) from None
 
-    # Chaves "AQ...." são do Vertex AI Express Mode; chaves "AIza..." são do Google AI Studio
-    usar_vertex = chave.startswith("AQ.") or os.environ.get("GOOGLE_GENAI_USE_VERTEXAI") == "1"
-    client = genai.Client(vertexai=True, api_key=chave) if usar_vertex else genai.Client(api_key=chave)
     conteudos = []
     for item in historico:
         papel = "model" if item.get("role") == "model" else "user"
@@ -89,16 +117,40 @@ def _chamar_gemini(mensagem: str, historico: list[dict]) -> str:
             conteudos.append(types.Content(role=papel, parts=[types.Part.from_text(text=texto)]))
     conteudos.append(types.Content(role="user", parts=[types.Part.from_text(text=mensagem)]))
 
-    resposta = client.models.generate_content(
-        model=MODELO_GEMINI,
-        contents=conteudos,
-        config=types.GenerateContentConfig(
-            system_instruction=SYSTEM_INSTRUCTION_BASE + _contexto_atual(),
-            temperature=0.7,
-            max_output_tokens=700,
-        ),
+    cfg = types.GenerateContentConfig(
+        system_instruction=SYSTEM_INSTRUCTION_BASE + _contexto_atual(),
+        temperature=0.7,
+        max_output_tokens=700,
     )
-    return (resposta.text or "Perdão, deu um pequeno soluço nos meus circuitos litúrgicos. Pode repetir?").strip()
+
+    # Chaves "AQ...." são do Vertex AI Express Mode; chaves "AIza..." são do Google AI Studio
+    modos = [True, False] if chave.startswith("AQ.") else [False, True]
+    tentativas: list[tuple[bool, str]] = []
+    if _CONFIG_FUNCIONANDO:
+        tentativas.append(_CONFIG_FUNCIONANDO)
+    for m in modos:
+        for mod in MODELOS_GEMINI:
+            if (m, mod) not in tentativas:
+                tentativas.append((m, mod))
+
+    ultimo_erro = None
+    idx = 0
+    while idx < len(tentativas):
+        usar_vertex, modelo = tentativas[idx]
+        idx += 1
+        try:
+            client = genai.Client(vertexai=True, api_key=chave) if usar_vertex else genai.Client(api_key=chave)
+            resposta = client.models.generate_content(model=modelo, contents=conteudos, config=cfg)
+            _CONFIG_FUNCIONANDO = (usar_vertex, modelo)
+            return (resposta.text or "Perdão, deu um pequeno soluço nos meus circuitos litúrgicos. Pode repetir?").strip()
+        except Exception as e:
+            ultimo_erro = e
+            # Se a API indicar que o modelo mudou (ex: "Please update your code to use models/gemini-..."), adiciona na fila
+            for sugerido in re.findall(r"use models/([a-zA-Z0-9._-]+)", str(e)):
+                if (usar_vertex, sugerido) not in tentativas:
+                    tentativas.insert(idx, (usar_vertex, sugerido))
+            continue
+    raise RuntimeError(f"Erro na API do Gemini: {ultimo_erro}") from None
 
 
 @bp.post("/chat")
