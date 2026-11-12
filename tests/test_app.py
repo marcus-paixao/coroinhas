@@ -279,20 +279,29 @@ def test_liturgia(cliente):
     dom = liturgia.calcular_calendario(date(2026, 11, 15))
     assert dom["titulo"] == "33º Domingo do Tempo Comum, Ano A" and dom["cor"] == "Verde"
 
-    r = cliente.put(f"{API}/liturgia/2026-11-14", json={
-        "titulo": "32ª Semana do Tempo Comum, Ano Par (II)",
+    r = cliente.put(f"{API}/liturgia/2026-11-15", json={
+        "titulo": "33º Domingo do Tempo Comum, Ano A",
         "cor": "Verde",
         "leituras": [
-            {"tipo": "1ª Leitura", "referencia": "3Jo 1,5-8"},
-            {"tipo": "Salmo", "referencia": "Sl 111(112),1-2.3-4.5-6 (R. 1)"},
-            {"tipo": "Evangelho", "referencia": "Lc 18,1-8"},
+            {"tipo": "1ª Leitura", "referencia": "Pr 31,10-13.19-20.30-31"},
+            {"tipo": "Salmo", "referencia": "Sl 127(128),1-2.3.4-5 (R. 1a)"},
+            {"tipo": "2ª Leitura", "referencia": "1Ts 5,1-6"},
+            {"tipo": "Evangelho", "referencia": "Mt 25,14-30"},
         ],
     })
     assert r.status_code == 200
     dados = r.get_json()["liturgia"]
-    assert dados["resumo_leituras"] == ["3Jo 1,5-8", "Sl 111(112),1-2.3-4.5-6 (R. 1)", "Lc 18,1-8"]
+    assert "Mt 25,14-30" in dados["resumo_leituras"]
+    # Como a missa fixa de sábado é às 16h (>= 15h), o sábado e o domingo usam a mesma liturgia de domingo
     html = cliente.get("/liturgia?semana=2026-11-09").get_data(as_text=True)
-    assert "3Jo 1,5-8" in html and "Lc 18,1-8" in html
+    assert "Sábado (após 15h) e Domingo" in html and "Mt 25,14-30" in html
+
+    # Se houver uma missa no sábado antes das 15h (ex.: 10:00) junto com as missas do fim de semana, aparece também a liturgia própria de sábado
+    cliente.post(f"{API}/semana/gerar", json={"semana": "2026-11-09"})
+    cliente.post(f"{API}/missas", json={"data": "2026-11-14", "hora": "10:00", "titulo": "Missa da manhã", "reservas": 0, "vagas": []})
+    sem_payload = cliente.get(f"{API}/semana?semana=2026-11-09").get_json()
+    datas_lit = [l["data"] for l in sem_payload["liturgias"]]
+    assert "2026-11-14" in datas_lit and "2026-11-15" in datas_lit
 
 
 def test_sacrobyte_chat(cliente, monkeypatch):

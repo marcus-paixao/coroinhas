@@ -46,6 +46,53 @@ def _mes_de(ref: date) -> tuple[date, date]:
     return ini, (ini + timedelta(days=32)).replace(day=1) - timedelta(days=1)
 
 
+def _liturgias_da_escala(seg: date, missas: list[dict]) -> list[dict]:
+    """Calcula a liturgia dos dias da escala.
+    Regra litúrgica: missas de sábado a partir das 15h (vespertinas) celebram a liturgia de Domingo."""
+    sab = (seg + timedelta(days=5)).isoformat()
+    dom = (seg + timedelta(days=6)).isoformat()
+
+    # Mapeia data_liturgica -> conjunto de datas reais das missas que usam essa liturgia
+    agrupado: dict[str, set[str]] = {}
+    tem_sab_manha = False
+    tem_sab_vespertino = False
+
+    lista_missas = missas
+    if not lista_missas:
+        # Sem missas criadas na semana ainda: usa os horários fixos (ex.: Sáb 16h + Dom 10h/18h)
+        lista_missas = [
+            {"data": (seg + timedelta(days=(h["dia_semana"] - 1) % 7)).isoformat(), "hora": h["hora"]}
+            for h in repo.horarios()
+        ] or [{"data": sab, "hora": "16:00"}, {"data": dom, "hora": "10:00"}]
+
+    for m in lista_missas:
+        dt = date.fromisoformat(m["data"])
+        if dt.weekday() == 5 and m["hora"] >= "15:00":
+            tem_sab_vespertino = True
+            dt_lit = (dt + timedelta(days=1)).isoformat()
+        else:
+            if dt.weekday() == 5:
+                tem_sab_manha = True
+            dt_lit = m["data"]
+        agrupado.setdefault(dt_lit, set()).add(m["data"])
+
+    saida = []
+    for dt_lit in sorted(agrupado):
+        lit = dict(repo.obter_liturgia(dt_lit))
+        datas_reais = sorted(agrupado[dt_lit])
+        if len(datas_reais) >= 2 and sab in datas_reais and dom in datas_reais:
+            lit["dia_nome"] = "Sábado (após 15h) e Domingo"
+            lit["data_curta"] = f"{regras.data_curta(sab)} e {regras.data_curta(dom)}"
+            lit["data_extenso"] = regras.titulo_semana(seg, [sab, dom])
+        elif dt_lit == dom and datas_reais == [sab] and tem_sab_vespertino:
+            lit["dia_nome"] = "Sábado (após 15h · Missa Vespertina)"
+            lit["data_curta"] = regras.data_curta(sab)
+        elif dt_lit == sab and tem_sab_manha and tem_sab_vespertino:
+            lit["dia_nome"] = "Sábado (missas antes das 15h)"
+        saida.append(lit)
+    return saida
+
+
 def _arquivo_enviado(extensao: str) -> tuple[Path, str]:
     f = request.files.get("arquivo")
     if f is None or not f.filename:
@@ -126,11 +173,9 @@ def liturgia():
     missas = repo.missas_entre(seg, seg + timedelta(days=6))
     if todos:
         datas = [(seg + timedelta(days=i)).isoformat() for i in range(7)]
+        dias = repo.liturgias_datas(datas)
     else:
-        datas = sorted({m["data"] for m in missas}) or [
-            (seg + timedelta(days=5)).isoformat(),
-            (seg + timedelta(days=6)).isoformat(),
-        ]
+        dias = _liturgias_da_escala(seg, missas)
     hoje = date.today()
     return render_template(
         "coroinhas/liturgia.html",
@@ -142,7 +187,7 @@ def liturgia():
         titulo=regras.titulo_semana(seg, [m["data"] for m in missas]),
         distancia=regras.distancia_semana(seg, hoje),
         todos=todos,
-        dias=repo.liturgias_datas(datas),
+        dias=dias,
         cores_liturgicas=list(mod_liturgia.CORES_LITURGICAS.keys()),
     )
 
@@ -215,9 +260,7 @@ def _payload_semana(seg: date) -> dict:
         "horarios_faltando": repo.horarios_faltando(seg),
         "tem_semana_anterior": bool(repo.missas_entre(seg - timedelta(days=7), seg - timedelta(days=1))),
         "pode_editar": bool((g.get("usuario") or {}).get("coordenador")),
-        "liturgias": repo.liturgias_datas(
-            sorted({m["data"] for m in missas}) or [(seg + timedelta(days=5)).isoformat(), (seg + timedelta(days=6)).isoformat()]
-        ),
+        "liturgias": _liturgias_da_escala(seg, missas),
     }
 
 

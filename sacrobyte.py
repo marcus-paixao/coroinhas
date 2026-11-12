@@ -11,7 +11,7 @@ from pathlib import Path
 from flask import Blueprint, jsonify, request, session
 
 from projetos.coroinhas import regras
-from projetos.coroinhas.rotas import repo
+from projetos.coroinhas.rotas import _liturgias_da_escala, repo
 
 ENV_PATH = Path(__file__).resolve().parent / ".env"
 
@@ -51,11 +51,7 @@ def _contexto_atual() -> str:
         missas = repo.missas_entre(seg, seg + timedelta(days=6))
         cfg = repo.config()
         pend = regras.pendencias(membros, missas, cfg["tipos_escalaveis"], seg)
-        datas_lit = sorted({m["data"] for m in missas}) or [
-            (seg + timedelta(days=5)).isoformat(),
-            (seg + timedelta(days=6)).isoformat(),
-        ]
-        lits = repo.liturgias_datas(datas_lit)
+        lits = _liturgias_da_escala(seg, missas)
         resumo_lit = "; ".join(
             f"{l['dia_nome']} {l['data_curta']}: {l['titulo']} (Cor {l['cor']}, leituras: {', '.join(l['resumo_leituras']) or 'a consultar'})"
             for l in lits
