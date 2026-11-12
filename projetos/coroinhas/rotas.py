@@ -58,18 +58,32 @@ def _arquivo_enviado(extensao: str) -> tuple[Path, str]:
     return tmp, nome
 
 
+@bp.before_request
+def _proteger_edicao():
+    u = g.get("usuario")
+    if not u:
+        return None
+    if not u.get("coordenador"):
+        if request.method in ("POST", "PUT", "DELETE") and request.endpoint != "coroinhas.api_liturgia_atualizar":
+            return jsonify({"erro": "Apenas a coordenação pode criar ou alterar a escala e os cadastros."}), 403
+        if request.endpoint in ("coroinhas.funcoes", "coroinhas.ajustes", "coroinhas.backup"):
+            return jsonify({"erro": "Acesso restrito à coordenação."}), 403
+
+
 @bp.app_context_processor
 def _ctx():
     """Menu e o contador de pendências da semana atual (badge da aba Escala). Vale também fora do projeto (ex.: Minha conta)."""
-    if not g.get("usuario"):
+    u = g.get("usuario")
+    if not u:
         return {}
     seg = regras.inicio_semana(date.today())
     missas = repo.missas_entre(seg, seg + timedelta(days=6))
     badge = 0
-    if missas:
+    if missas and u.get("coordenador"):
         p = regras.pendencias(repo.membros(), missas, repo.config()["tipos_escalaveis"], seg)
         badge = p["vagas_abertas"] + len(p["sem_escala"])
-    return {"abas": ABAS, "badge_escala": badge, "TIPOS": regras.TIPOS, "regras": regras}
+    abas_visiveis = ABAS if u.get("coordenador") else [a for a in ABAS if a[0] in ("painel", "escala", "liturgia", "equipe")]
+    return {"abas": abas_visiveis, "badge_escala": badge, "TIPOS": regras.TIPOS, "regras": regras}
 
 
 @bp.errorhandler(ErroCoroinhas)
@@ -200,6 +214,7 @@ def _payload_semana(seg: date) -> dict:
         },
         "horarios_faltando": repo.horarios_faltando(seg),
         "tem_semana_anterior": bool(repo.missas_entre(seg - timedelta(days=7), seg - timedelta(days=1))),
+        "pode_editar": bool((g.get("usuario") or {}).get("coordenador")),
         "liturgias": repo.liturgias_datas(
             sorted({m["data"] for m in missas}) or [(seg + timedelta(days=5)).isoformat(), (seg + timedelta(days=6)).isoformat()]
         ),

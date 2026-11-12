@@ -3,7 +3,7 @@
 {% block titulo %}Minha conta{% endblock %}
 
 {% block conteudo %}
-{{ cabecalho("Minha conta", usuario.nome ~ " · usuário " ~ usuario.login ~ " · " ~ ("Coordenador(a)" if usuario.coordenador else "Equipe")) }}
+{{ cabecalho("Minha conta", usuario.nome ~ " · usuário " ~ usuario.login ~ " · " ~ usuario.papel_rotulo) }}
 
 <div class="grade-ajustes mb-4">
   <section class="cartao cartao-pad entrar" style="--i:1">
@@ -21,8 +21,9 @@
 
   {% if not usuario.coordenador %}
   <section class="cartao cartao-pad entrar" style="--i:2">
-    <h2>👥 Contas de acesso</h2>
-    <p>Para criar uma conta nova, trocar o nome ou recuperar uma senha esquecida, fale com a coordenação.</p>
+    <h2>👥 Meu perfil ({{ usuario.papel_rotulo }})</h2>
+    <p>Sua conta permite <strong>visualizar a escala da semana, consultar a liturgia e conversar com o SacroByte</strong>.
+       Para alterar a função da sua conta ou recuperar senhas, fale com a coordenação.</p>
   </section>
   {% endif %}
 </div>
@@ -33,16 +34,20 @@
     <h2><i class="bi bi-people"></i> Contas de acesso</h2>
     <button type="button" class="btn btn-azul" data-nova><i class="bi bi-person-plus-fill"></i> Nova conta</button>
   </div>
-  <p class="text-secondary">Coordenadores criam, editam e removem contas e redefinem senhas esquecidas. Os demais usam o sistema normalmente e só trocam a própria senha.</p>
+  <p class="text-secondary">
+    <strong>Coordenadores</strong> criam/editam escalas, cadastros e gerenciam contas.
+    <strong>Cerimoniários</strong> e <strong>Coroinhas</strong> visualizam a escala e a liturgia (sem alterar dados).
+  </p>
   <ul class="lista-contas">
     {% for c in contas %}
+    {% set cor_tag = {'coordenacao': 'tag-ouro', 'cerimoniario': 'tag-azul', 'coroinha': 'tag-verde'}[c.papel] %}
     <li>
-      <span class="avatar" style="--tam:38px;background:{{ 'var(--ouro)' if c.coordenador else 'var(--azul-600)' }}" aria-hidden="true">{{ c.nome[:1]|upper }}</span>
+      <span class="avatar" style="--tam:38px;background:{{ 'var(--ouro)' if c.coordenador else ('var(--azul-600)' if c.papel == 'cerimoniario' else 'var(--verde)') }}" aria-hidden="true">{{ c.nome[:1]|upper }}</span>
       <div class="info">
         <strong>{{ c.nome }}</strong>
         <small>{{ c.login }}</small>
       </div>
-      <span class="tag {{ 'tag-ouro' if c.coordenador else 'tag-azul' }}">{{ 'Coordenador(a)' if c.coordenador else 'Equipe' }}</span>
+      <span class="tag {{ cor_tag }}">{{ c.papel_rotulo }}</span>
       {% if c.id == usuario.id %}<span class="tag tag-cinza">você</span>{% endif %}
       <button type="button" class="btn-icone" data-editar="{{ c.id }}" aria-label="Editar {{ c.nome }}"><i class="bi bi-pencil"></i></button>
       <button type="button" class="btn-icone perigo" data-remover="{{ c.id }}" aria-label="Remover {{ c.nome }}" {% if c.id == usuario.id %}disabled{% endif %}><i class="bi bi-trash3"></i></button>
@@ -73,7 +78,14 @@
             </div>
             <small id="dicaSenha">Mínimo de {{ senha_min }} caracteres. Passe a senha para a pessoa; ela pode trocar depois em “Minha conta”.</small>
           </div>
-          <label class="check-linha inteiro"><input type="checkbox" name="coordenador"> Coordenador(a) — pode gerenciar as contas</label>
+          <label class="campo inteiro">
+            <span>Função / Permissão no sistema</span>
+            <select class="form-select" name="papel" id="campoPapel">
+              <option value="coroinha">Coroinha — somente visualização (escala e liturgia)</option>
+              <option value="cerimoniario">Cerimoniário(a) — somente visualização (escala e liturgia)</option>
+              <option value="coordenacao">Coordenador(a) — acesso total (cria escalas e gerencia contas)</option>
+            </select>
+          </label>
         </div>
       </div>
       <div class="modal-footer">

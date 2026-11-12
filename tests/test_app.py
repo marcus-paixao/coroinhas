@@ -317,3 +317,33 @@ def test_sacrobyte_chat(cliente, monkeypatch):
     assert cliente.post("/chat/limpar", json={}).status_code == 200
     cliente.post("/chat", json={"mensagem": "Nova conversa"})
     assert historico_recebido[2] == []
+
+
+def test_cadastro_na_pagina_e_permissoes_papeis(monkeypatch, tmp_path):
+    monkeypatch.setattr(acesso, "usuarios", acesso.Usuarios(tmp_path / "papeis.db"))
+    c1 = app.test_client()
+    # 1ª conta criada pela aba "Criar conta" vira Coordenador(a) automaticamente
+    assert "Criar conta e entrar" in c1.get("/entrar?modo=criar").get_data(as_text=True)
+    r1 = c1.post("/entrar", data={"acao": "criar", "nome": "Marcus", "login": "marcus", "senha": "senha-forte-1", "repetir": "senha-forte-1"})
+    assert r1.status_code == 302
+    contas = acesso.usuarios.listar()
+    assert len(contas) == 1 and contas[0]["coordenador"] is True and contas[0]["papel"] == "coordenacao"
+
+    # 2ª conta criada pela aba "Criar conta" entra como Cerimoniário (sem poder editar escala)
+    c2 = app.test_client()
+    r2 = c2.post("/entrar", data={"acao": "criar", "nome": "Lucas", "login": "lucas", "papel": "cerimoniario", "senha": "senha-forte-2", "repetir": "senha-forte-2"})
+    assert r2.status_code == 302
+    lucas = next(u for u in acesso.usuarios.listar() if u["login"] == "lucas")
+    assert lucas["coordenador"] is False and lucas["papel"] == "cerimoniario"
+
+    # Lucas (Cerimoniário) pode visualizar Escala e Liturgia, mas NÃO pode criar/alterar escala ou membros
+    assert c2.get("/escala").status_code == 200
+    assert c2.get("/liturgia").status_code == 200
+    assert c2.get(f"{API}/semana").status_code == 200
+    assert c2.post(f"{API}/semana/gerar", json={"semana": SEGUNDA.isoformat()}).status_code == 403
+    assert c2.post(f"{API}/membros", json={"nome": "Teste"}).status_code == 403
+    assert c2.get("/ajustes").status_code == 403
+
+    # Coordenador (Marcus) pode mudar o papel de Lucas para Coroinha ou Coordenador em "Minha conta"
+    assert c1.put(f"{CONTAS}/{lucas['id']}", json={"nome": "Lucas", "papel": "coroinha"}).status_code == 200
+    assert acesso.usuarios.obter(lucas["id"])["papel"] == "coroinha"

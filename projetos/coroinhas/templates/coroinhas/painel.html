@@ -18,11 +18,12 @@
       {% else %}Faltam {{ pend.vagas_abertas }} vaga(s) e {{ pend.sem_escala|length }} pessoa(s) ainda não foram escaladas.{% endif %}
     </p>
     <div class="d-flex align-items-center gap-3 entrar" style="--i:3">
-      {% if not tem_membros %}
+      {% if not tem_membros and usuario.coordenador %}
       <a class="btn btn-ouro" href="{{ url_for('coroinhas.ajustes') }}"><i class="bi bi-file-earmark-spreadsheet"></i> Importar planilha</a>
       {% else %}
-      <a class="btn btn-ouro" href="{{ url_for('coroinhas.escala', semana=semana.isoformat()) }}">{{ 'Abrir escala' if missas else 'Montar escala' }} <i class="bi bi-arrow-right"></i></a>
+      <a class="btn btn-ouro" href="{{ url_for('coroinhas.escala', semana=semana.isoformat()) }}">{{ 'Abrir escala' if (missas or not usuario.coordenador) else 'Montar escala' }} <i class="bi bi-arrow-right"></i></a>
       {% endif %}
+      <a class="btn btn-suave" href="{{ url_for('coroinhas.liturgia', semana=semana.isoformat()) }}"><i class="bi bi-book-half"></i> Liturgia</a>
       {% if pend.total_vagas %}
       <div class="anel {% if preenchidas == pend.total_vagas %}completo{% endif %}" style="--pct: {{ (100 * preenchidas / pend.total_vagas)|round(1) }}">
         <div class="anel-texto"><strong>{{ preenchidas }}/{{ pend.total_vagas }}</strong><span>vagas</span></div>
@@ -122,7 +123,9 @@
           <strong>{{ m.apelido }}</strong>
           <small>{{ m.motivo_ausencia or 'Sem motivo informado' }}{% if m.ausente_ate %} · até {{ regras.data_curta(m.ausente_ate) }}{% endif %}</small>
         </div>
+        {% if usuario.coordenador %}
         <button type="button" class="btn btn-suave btn-sm" data-voltou="{{ m.id }}" data-nome="{{ m.apelido }}">Voltou</button>
+        {% endif %}
       </div>
       {% else %}
       <p class="mb-0 text-secondary">Ninguém marcado como ausente. 👍</p>

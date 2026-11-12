@@ -67,15 +67,18 @@
 
   function renderAcoes() {
     const p = [];
-    if (D.horarios_faltando > 0) {
+    const podeEditar = D.pode_editar !== false;
+    if (podeEditar && D.horarios_faltando > 0) {
       p.push(`<button class="btn btn-azul" data-acao="gerar"><i class="bi bi-stars"></i>
         ${D.missas.length ? `Criar ${D.horarios_faltando} missa(s) que faltam` : "Criar missas da semana"}</button>`);
     }
-    p.push(`<button class="btn btn-contorno" data-acao="nova"><i class="bi bi-calendar-plus"></i> Missa extra</button>`);
+    if (podeEditar) {
+      p.push(`<button class="btn btn-contorno" data-acao="nova"><i class="bi bi-calendar-plus"></i> Missa extra</button>`);
+    }
     if (D.missas.length) {
       p.push(`<button class="btn btn-ouro" data-acao="whatsapp"><i class="bi bi-whatsapp"></i> Copiar p/ WhatsApp</button>`);
       p.push(`<button class="btn btn-contorno" data-acao="imagem"><i class="bi bi-image"></i> Imagem da escala</button>`);
-      if (D.tem_semana_anterior) {
+      if (podeEditar && D.tem_semana_anterior) {
         p.push(`<div class="dropdown">
           <button class="btn-icone" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Mais opções"><i class="bi bi-three-dots"></i></button>
           <ul class="dropdown-menu dropdown-menu-end cartao p-1">
@@ -95,22 +98,27 @@
   }
 
   function botaoPessoa(item, missa, contagem, rotuloVazio, destacar) {
+    const podeEditar = D.pode_editar !== false;
     const m = item.membro_id ? porId.get(item.membro_id) : null;
-    const problema = problemaDe(item.membro_id, missa, contagem);
+    const problema = podeEditar ? problemaDe(item.membro_id, missa, contagem) : null;
     const classes = ["vaga-pessoa", m ? "" : "vazia", problema ? "problema" : "", destacar === item.id ? "pop" : ""].join(" ");
     const dentro = m
       ? `${avatar(m, 28)}<span class="nome">${esc(m.apelido)}</span>${problema ? '<i class="bi bi-exclamation-octagon-fill text-danger"></i>' : ""}`
-      : `<span class="mais"><i class="bi bi-plus-lg"></i></span><span class="nome">${esc(rotuloVazio)}</span>`;
+      : `${podeEditar ? '<span class="mais"><i class="bi bi-plus-lg"></i></span>' : ""}<span class="nome">${esc(podeEditar ? rotuloVazio : "A definir")}</span>`;
+    if (!podeEditar) {
+      return `<div class="${classes}" style="cursor:default">${dentro}</div>`;
+    }
     return `<button type="button" class="${classes}" data-escala="${item.id}" data-missa="${missa.id}" data-rotulo="${esc(rotuloVazio)}"
       ${problema ? `title="${esc(problema)}"` : ""}>${dentro}</button>`;
   }
 
   function renderMissas(destacar) {
+    const podeEditar = D.pode_editar !== false;
     if (!D.missas.length) {
       const fixos = D.horarios.map((h) => `${A.DIAS[h.dia_semana].slice(0, 3)} ${formatarHora(h.hora)}`).join(", ");
       el("missas").innerHTML = `<div class="cartao"><div class="vazio entrar"><span class="emoji">⛪</span><h3>Nenhuma missa nesta semana</h3>
-        <p class="mb-3">${D.horarios.length ? `Crie as missas a partir das missas fixas (${esc(fixos)}).` : "Cadastre as missas fixas em “Funções & Missas” ou adicione uma missa extra."}</p>
-        ${D.horarios.length ? '<button class="btn btn-azul" data-acao="gerar"><i class="bi bi-stars"></i> Criar missas da semana</button>' : ""}</div></div>`;
+        <p class="mb-3">${podeEditar ? (D.horarios.length ? `Crie as missas a partir das missas fixas (${esc(fixos)}).` : "Cadastre as missas fixas em “Funções & Missas” ou adicione uma missa extra.") : "A coordenação ainda não publicou a escala desta semana."}</p>
+        ${podeEditar && D.horarios.length ? '<button class="btn btn-azul" data-acao="gerar"><i class="bi bi-stars"></i> Criar missas da semana</button>' : ""}</div></div>`;
       return;
     }
     el("missas").innerHTML = `<div class="missas">${D.missas.map((missa, i) => {
@@ -122,14 +130,14 @@
         <header class="missa-topo">
           <span class="missa-hora">${formatarHora(missa.hora)}</span>
           <div class="missa-dia"><strong>${diaSemana(missa.data)}</strong><span>${dataCurta(missa.data)}${missa.titulo ? ` · ${esc(missa.titulo)}` : ""}</span></div>
-          <div class="acoes">
+          ${podeEditar ? `<div class="acoes">
             <button type="button" class="btn-icone" data-editar-missa="${missa.id}" aria-label="Editar missa"><i class="bi bi-pencil"></i></button>
             <button type="button" class="btn-icone" data-remover-missa="${missa.id}" aria-label="Remover missa"><i class="bi bi-trash3"></i></button>
-          </div>
-        </header>
-        <div class="missa-progresso ${pct === 100 ? "completo" : ""}"><div style="width:${pct}%"></div></div>
+          </div>` : ""}
+        </header>` +
+        `<div class="missa-progresso ${pct === 100 ? "completo" : ""}"><div style="width:${pct}%"></div></div>
         <ul class="vagas">
-          ${missa.vagas.length ? "" : '<li class="vaga justify-content-center text-secondary">Sem vagas — toque no lápis para adicionar.</li>'}
+          ${missa.vagas.length ? "" : '<li class="vaga justify-content-center text-secondary">Sem vagas cadastradas.</li>'}
           ${missa.vagas.map((v) => `<li class="vaga">
             <div class="vaga-funcoes"><div class="chips">${v.funcoes.map((f) => funcoes.get(f)).filter(Boolean).map(chipFuncao).join("")}</div></div>
             ${botaoPessoa(v, missa, contagem, "Escalar", destacar)}</li>`).join("")}
@@ -141,7 +149,7 @@
   }
 
   function renderLateral() {
-    if (!D.missas.length) { el("lateral").innerHTML = ""; return; }
+    if (!D.missas.length || D.pode_editar === false) { el("lateral").innerHTML = ""; return; }
     const p = D.pendencias;
     const pessoas = (ids) => ids.map((id) => porId.get(id)).filter(Boolean);
     const semEscala = pessoas(p.sem_escala);

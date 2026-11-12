@@ -7,8 +7,10 @@
      (membros|selectattr('tipo', 'eq', 'coroinha')|list|length) ~ " coroinhas · " ~
      (membros|selectattr('tipo', 'eq', 'cerimoniario')|list|length) ~ " cerimoniários · " ~
      (membros|selectattr('tipo', 'eq', 'coordenacao')|list|length) ~ " na coordenação") %}
+  {% if usuario.coordenador %}
   <button type="button" class="btn btn-contorno" data-importar><i class="bi bi-file-earmark-spreadsheet"></i> Importar planilha</button>
   <button type="button" class="btn btn-azul" data-novo><i class="bi bi-person-plus-fill"></i> Novo cadastro</button>
+  {% endif %}
 {% endcall %}
 <input type="file" id="inputPlanilha" accept=".xlsx" hidden>
 
@@ -42,8 +44,10 @@
     <div class="membro-topo">
       {{ avatar(m, 48) }}
       <div class="info"><h3>{{ m.apelido }}</h3><small>{{ m.nome }}</small></div>
+      {% if usuario.coordenador %}
       <button type="button" class="btn-icone" data-editar="{{ m.id }}" aria-label="Editar {{ m.apelido }}"><i class="bi bi-pencil"></i></button>
       <button type="button" class="btn-icone perigo" data-remover="{{ m.id }}" aria-label="Remover {{ m.apelido }}"><i class="bi bi-trash3"></i></button>
+      {% endif %}
     </div>
     <div class="chips">
       <span class="tag {{ {'coroinha': 'tag-azul', 'cerimoniario': 'tag-ouro', 'coordenacao': 'tag-verde'}[m.tipo] }}">{{ TIPOS[m.tipo] }}</span>
@@ -59,8 +63,10 @@
     {% endif %}
     <div class="membro-rodape">
       <span data-status>{{ '🔕 Ausente — não entra nos alertas' if m.ausente_hoje else '✅ Disponível para a escala' }}</span>
+      {% if usuario.coordenador %}
       <button type="button" class="switch" role="switch" aria-checked="{{ 'true' if m.ausente_hoje else 'false' }}"
               aria-label="Marcar {{ m.apelido }} como ausente" data-ausencia="{{ m.id }}"></button>
+      {% endif %}
     </div>
   </article>
   {% endfor %}

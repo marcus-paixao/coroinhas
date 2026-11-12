@@ -18,16 +18,39 @@
   <form method="post" class="cartao login entrar" style="--i: 2">
     <h1>Coroinhas <em>de Lourdes</em></h1>
     <p>Escala da Pastoral dos Coroinhas e Cerimoniários · Basílica Nossa Senhora de Lourdes</p>
-    {% if primeira_vez %}
-    <div class="alerta-box laranja"><i class="bi bi-person-plus"></i>
-      <div><strong>Bem-vindo! Crie a conta de coordenador</strong>Os dados ficam só neste celular. Depois você cria outras contas em “Minha conta”.</div>
+
+    {% if not primeira_vez %}
+    <div class="segmentado w-100 justify-content-center" role="tablist">
+      <a href="{{ url_for('acesso.entrar') }}" class="btn-seg flex-fill text-center {% if not modo_criar %}ativo{% endif %}">Entrar</a>
+      <a href="{{ url_for('acesso.entrar', modo='criar') }}" class="btn-seg flex-fill text-center {% if modo_criar %}ativo{% endif %}">Criar conta</a>
     </div>
+    {% endif %}
+
+    {% if primeira_vez or modo_criar %}
+    {% if modo_criar %}<input type="hidden" name="acao" value="criar">{% endif %}
+    {% if sem_usuarios %}
+    <div class="alerta-box laranja"><i class="bi bi-person-plus"></i>
+      <div><strong>Bem-vindo! Crie a conta de coordenador</strong>A 1ª conta cadastrada recebe acesso total de coordenação. Depois você pode atribuir funções em “Minha conta”.</div>
+    </div>
+    {% else %}
+    <div class="alerta-box verde"><i class="bi bi-person-badge"></i>
+      <div><strong>Criar minha conta</strong>Você terá acesso para visualizar a escala e a liturgia. A coordenação pode alterar permissões em “Minha conta”.</div>
+    </div>
+    {% endif %}
     <label class="campo"><span>Seu nome</span>
       <input class="form-control" name="nome" autocomplete="name" autofocus required value="{{ request.form.get('nome', '') }}">
     </label>
     <label class="campo"><span>Usuário (para entrar)</span>
-      <input class="form-control" name="login" autocomplete="username" autocapitalize="none" spellcheck="false" required value="{{ request.form.get('login', '') }}">
+      <input class="form-control" name="login" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="ex.: joao" required value="{{ request.form.get('login', '') }}">
     </label>
+    {% if not sem_usuarios %}
+    <label class="campo"><span>Sua função na pastoral</span>
+      <select class="form-select" name="papel">
+        <option value="coroinha" {% if request.form.get('papel') != 'cerimoniario' %}selected{% endif %}>Coroinha</option>
+        <option value="cerimoniario" {% if request.form.get('papel') == 'cerimoniario' %}selected{% endif %}>Cerimoniário(a)</option>
+      </select>
+    </label>
+    {% endif %}
     <label class="campo"><span>Senha (mín. {{ senha_min }} caracteres)</span>
       <input class="form-control" name="senha" type="password" autocomplete="new-password" minlength="{{ senha_min }}" required>
     </label>
@@ -37,7 +60,7 @@
     {% else %}
     {% if sem_usuarios %}
     <div class="alerta-box laranja"><i class="bi bi-terminal"></i>
-      <div><strong>Nenhum usuário criado ainda</strong>No terminal, rode <code>python app.py criar-usuario seu-login</code>.</div>
+      <div><strong>Nenhum usuário criado ainda</strong>Clique na aba <strong>Criar conta</strong> acima para criar o 1º coordenador (ou no terminal rode <code>python app.py criar-usuario seu-login</code>).</div>
     </div>
     {% endif %}
     <label class="campo"><span>Usuário</span>
@@ -48,7 +71,7 @@
     </label>
     {% endif %}
     {% if erro %}<div class="alerta-box vermelho sacudir" role="alert"><i class="bi bi-exclamation-octagon"></i><div>{{ erro }}</div></div>{% endif %}
-    {% if primeira_vez %}
+    {% if primeira_vez or modo_criar %}
     <button class="btn btn-ouro btn-lg"><i class="bi bi-person-check"></i> Criar conta e entrar</button>
     {% else %}
     <button class="btn btn-ouro btn-lg"><i class="bi bi-box-arrow-in-right"></i> Entrar</button>

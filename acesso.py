@@ -31,6 +31,18 @@ _erros: dict[str, deque] = defaultdict(deque)
 
 SENHA_MIN = 8
 _LOGIN_OK = re.compile(r"^[a-z0-9._-]{2,40}$")
+PAPEIS = {
+    "coordenacao": "Coordenador(a)",
+    "cerimoniario": "Cerimoniário(a)",
+    "coroinha": "Coroinha",
+}
+
+
+def _normalizar_papel(papel: str | None, coordenador: bool | None = None) -> tuple[str, bool]:
+    if papel in PAPEIS:
+        return papel, (papel == "coordenacao")
+    eh_coord = bool(coordenador)
+    return ("coordenacao" if eh_coord else "coroinha"), eh_coord
 
 
 class ErroAcesso(Exception):
@@ -56,11 +68,15 @@ class Usuarios:
         with self._lock, closing(self._con()) as con:
             con.execute("""CREATE TABLE IF NOT EXISTS usuarios (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, login TEXT UNIQUE NOT NULL, nome TEXT NOT NULL, senha_hash TEXT NOT NULL,
-                coordenador INTEGER NOT NULL DEFAULT 0)""")
-            if "coordenador" not in {c["name"] for c in con.execute("PRAGMA table_info(usuarios)")}:
+                coordenador INTEGER NOT NULL DEFAULT 0, papel TEXT NOT NULL DEFAULT 'coroinha')""")
+            colunas = {c["name"] for c in con.execute("PRAGMA table_info(usuarios)")}
+            if "coordenador" not in colunas:
                 # bancos antigos: quem já existia foi criado pelo terminal, ou seja, é da coordenação
                 con.execute("ALTER TABLE usuarios ADD COLUMN coordenador INTEGER NOT NULL DEFAULT 0")
                 con.execute("UPDATE usuarios SET coordenador = 1")
+            if "papel" not in colunas:
+                con.execute("ALTER TABLE usuarios ADD COLUMN papel TEXT NOT NULL DEFAULT 'coroinha'")
+                con.execute("UPDATE usuarios SET papel = CASE WHEN coordenador = 1 THEN 'coordenacao' ELSE 'coroinha' END")
             con.commit()
 
     def _con(self) -> sqlite3.Connection:
@@ -70,16 +86,27 @@ class Usuarios:
 
     @staticmethod
     def _publico(r: sqlite3.Row) -> dict:
-        return {"id": r["id"], "login": r["login"], "nome": r["nome"], "coordenador": bool(r["coordenador"]),
-                "marca": _marca(r["senha_hash"])}
+        eh_coord = bool(r["coordenador"])
+        papel_bruto = r["papel"] if "papel" in r.keys() else None
+        papel = "coordenacao" if eh_coord else (papel_bruto if papel_bruto in ("cerimoniario", "coroinha") else "coroinha")
+        return {
+            "id": r["id"],
+            "login": r["login"],
+            "nome": r["nome"],
+            "coordenador": eh_coord,
+            "papel": papel,
+            "papel_rotulo": PAPEIS[papel],
+            "marca": _marca(r["senha_hash"]),
+        }
 
-    def salvar(self, login: str, nome: str, senha: str, coordenador: bool = True) -> None:
+    def salvar(self, login: str, nome: str, senha: str, coordenador: bool = True, papel: str | None = None) -> None:
         """Pelo terminal: cria o usuário ou troca nome/senha de quem já existe (como coordenador)."""
+        papel_norm, eh_coord = _normalizar_papel(papel, coordenador)
         with self._lock, closing(self._con()) as con:
-            con.execute("""INSERT INTO usuarios (login, nome, senha_hash, coordenador) VALUES (?, ?, ?, ?)
+            con.execute("""INSERT INTO usuarios (login, nome, senha_hash, coordenador, papel) VALUES (?, ?, ?, ?, ?)
                            ON CONFLICT(login) DO UPDATE SET nome = excluded.nome, senha_hash = excluded.senha_hash,
-                                                            coordenador = excluded.coordenador""",
-                        (login.strip().lower(), nome.strip(), generate_password_hash(senha), int(coordenador)))
+                                                            coordenador = excluded.coordenador, papel = excluded.papel""",
+                        (login.strip().lower(), nome.strip(), generate_password_hash(senha), int(eh_coord), papel_norm))
             con.commit()
 
     def verificar(self, login: str, senha: str) -> dict | None:
@@ -101,33 +128,36 @@ class Usuarios:
         with closing(self._con()) as con:
             return con.execute("SELECT COUNT(*) FROM usuarios").fetchone()[0]
 
-    # ---- pela tela "Minha conta" (com validação)
-    def criar(self, login: str, nome: str, senha: str, coordenador: bool) -> dict:
+    # ---- pela tela "Minha conta" ou "Criar conta" (com validação)
+    def criar(self, login: str, nome: str, senha: str, coordenador: bool = False, papel: str | None = None) -> dict:
         login, nome = (login or "").strip().lower(), (nome or "").strip()
         if not _LOGIN_OK.match(login):
             raise ErroAcesso("Usuário inválido: use de 2 a 40 letras minúsculas, números, ponto, hífen ou _ (sem espaços).")
         if not nome:
             raise ErroAcesso("Informe o nome.")
         _validar_senha(senha)
+        papel_norm, eh_coord = _normalizar_papel(papel, coordenador)
         with self._lock, closing(self._con()) as con:
             try:
-                cur = con.execute("INSERT INTO usuarios (login, nome, senha_hash, coordenador) VALUES (?, ?, ?, ?)",
-                                  (login, nome[:120], generate_password_hash(senha), int(bool(coordenador))))
+                cur = con.execute("INSERT INTO usuarios (login, nome, senha_hash, coordenador, papel) VALUES (?, ?, ?, ?, ?)",
+                                  (login, nome[:120], generate_password_hash(senha), int(eh_coord), papel_norm))
             except sqlite3.IntegrityError:
                 raise ErroAcesso(f'Já existe uma conta com o usuário "{login}".') from None
             con.commit()
         return self.obter(cur.lastrowid)
 
-    def atualizar(self, uid: int, nome: str, coordenador: bool, senha: str | None = None) -> None:
+    def atualizar(self, uid: int, nome: str, coordenador: bool = False, senha: str | None = None, papel: str | None = None) -> None:
         nome = (nome or "").strip()
         if not nome:
             raise ErroAcesso("Informe o nome.")
+        papel_norm, eh_coord = _normalizar_papel(papel, coordenador)
         with self._lock, closing(self._con()) as con:
             if senha:
-                con.execute("UPDATE usuarios SET nome = ?, coordenador = ?, senha_hash = ? WHERE id = ?",
-                            (nome[:120], int(bool(coordenador)), generate_password_hash(_validar_senha(senha)), uid))
+                con.execute("UPDATE usuarios SET nome = ?, coordenador = ?, papel = ?, senha_hash = ? WHERE id = ?",
+                            (nome[:120], int(eh_coord), papel_norm, generate_password_hash(_validar_senha(senha)), uid))
             else:
-                con.execute("UPDATE usuarios SET nome = ?, coordenador = ? WHERE id = ?", (nome[:120], int(bool(coordenador)), uid))
+                con.execute("UPDATE usuarios SET nome = ?, coordenador = ?, papel = ? WHERE id = ?",
+                            (nome[:120], int(eh_coord), papel_norm, uid))
             con.commit()
 
     def trocar_senha(self, uid: int, nova: str) -> None:
@@ -172,13 +202,22 @@ def _logar(u: dict):
 @bp.route("/entrar", methods=["GET", "POST"])
 def entrar():
     erro = None
-    primeira_vez = APK and usuarios.total() == 0
-    if request.method == "POST" and primeira_vez:     # APK sem nenhuma conta: cria o 1º coordenador aqui mesmo
+    sem_usuarios = usuarios.total() == 0
+    primeira_vez = APK and sem_usuarios
+    modo_criar = request.args.get("modo") == "criar" or (request.method == "POST" and request.form.get("acao") == "criar")
+    if request.method == "POST" and (primeira_vez or modo_criar):
         f = request.form
         try:
             if f.get("senha", "") != f.get("repetir", ""):
                 raise ErroAcesso("As senhas não conferem.")
-            return _logar(usuarios.criar(f.get("login", ""), f.get("nome", ""), f.get("senha", ""), coordenador=True))
+            if sem_usuarios:
+                # A 1ª conta criada no sistema é sempre Coordenador(a)
+                u = usuarios.criar(f.get("login", ""), f.get("nome", ""), f.get("senha", ""), coordenador=True, papel="coordenacao")
+            else:
+                # As demais contas criadas na tela de login entram como Coroinha ou Cerimoniário (somente visualização)
+                papel_escolhido = "cerimoniario" if f.get("papel") == "cerimoniario" else "coroinha"
+                u = usuarios.criar(f.get("login", ""), f.get("nome", ""), f.get("senha", ""), coordenador=False, papel=papel_escolhido)
+            return _logar(u)
         except ErroAcesso as e:
             erro = str(e)
     elif request.method == "POST":
@@ -191,8 +230,8 @@ def entrar():
                 return _logar(u)
             _erros[ip].append(time.monotonic())
             erro = "Usuário ou senha incorretos."
-    return render_template("entrar.html", erro=erro, sem_usuarios=usuarios.total() == 0, primeira_vez=primeira_vez,
-                           senha_min=SENHA_MIN), 401 if erro else 200
+    return render_template("entrar.html", erro=erro, sem_usuarios=sem_usuarios, primeira_vez=primeira_vez,
+                           modo_criar=modo_criar, senha_min=SENHA_MIN), 401 if erro else 200
 
 
 @bp.post("/sair")
@@ -232,7 +271,8 @@ def _outra_conta(uid: int) -> dict:
 
 @bp.get("/conta")
 def conta():
-    return render_template("conta.html", contas=usuarios.listar() if g.usuario["coordenador"] else [], senha_min=SENHA_MIN)
+    return render_template("conta.html", contas=usuarios.listar() if g.usuario["coordenador"] else [],
+                           senha_min=SENHA_MIN, papeis=PAPEIS)
 
 
 @bp.post("/conta/api/senha")
@@ -249,7 +289,7 @@ def trocar_senha():
 def criar_conta():
     _so_coordenador()
     d = _corpo()
-    u = usuarios.criar(d.get("login", ""), d.get("nome", ""), d.get("senha", ""), bool(d.get("coordenador")))
+    u = usuarios.criar(d.get("login", ""), d.get("nome", ""), d.get("senha", ""), bool(d.get("coordenador")), d.get("papel"))
     return jsonify({"conta": {k: v for k, v in u.items() if k != "marca"}}), 201
 
 
@@ -258,10 +298,10 @@ def editar_conta(uid: int):
     d = _corpo()
     if uid == g.usuario["id"]:              # a própria conta: aqui só muda o nome (senha é por /conta/api/senha)
         _so_coordenador()
-        usuarios.atualizar(uid, d.get("nome", ""), True)
+        usuarios.atualizar(uid, d.get("nome", ""), True, papel="coordenacao")
         return jsonify({"ok": True})
     _outra_conta(uid)
-    usuarios.atualizar(uid, d.get("nome", ""), bool(d.get("coordenador")), d.get("senha") or None)
+    usuarios.atualizar(uid, d.get("nome", ""), bool(d.get("coordenador")), d.get("senha") or None, d.get("papel"))
     return jsonify({"ok": True})
 
 

@@ -1,4 +1,4 @@
-// Minha conta: trocar a própria senha e, para coordenadores, criar/editar/remover contas.
+// Minha conta: trocar a própria senha e, para coordenadores, criar/editar/remover contas e atribuir papéis.
 (function () {
   "use strict";
 
@@ -49,8 +49,8 @@
     form.nome.value = c?.nome ?? "";
     form.login.value = c?.login ?? "";
     form.login.disabled = !!c;
-    form.coordenador.checked = !!c?.coordenador;
-    form.coordenador.disabled = proprio;
+    form.papel.value = c?.papel ?? (c?.coordenador ? "coordenacao" : "coroinha");
+    form.papel.disabled = proprio;
     el("blocoSenha").hidden = proprio;      // a própria senha se troca no cartão ao lado
     el("rotuloSenha").textContent = c ? "Nova senha (deixe em branco para manter)" : "Senha";
     if (!c) form.senha.value = gerarSenha();
@@ -63,8 +63,13 @@
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
+    const papel = form.papel.value;
     const corpo = {
-      nome: form.nome.value, login: form.login.value, senha: form.senha.value, coordenador: form.coordenador.checked,
+      nome: form.nome.value,
+      login: form.login.value,
+      senha: form.senha.value,
+      papel,
+      coordenador: papel === "coordenacao",
     };
     try {
       if (editando) {

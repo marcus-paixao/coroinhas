@@ -36,7 +36,9 @@
       </div>
       <div class="liturgia-acoes">
         <button type="button" class="btn-icone" data-atualizar="{{ d.data }}" title="Atualizar leituras da CNBB" aria-label="Atualizar leituras de {{ d.data_curta }}"><i class="bi bi-arrow-clockwise"></i></button>
+        {% if usuario.coordenador %}
         <button type="button" class="btn-icone" data-editar="{{ d.data }}" title="Editar liturgia do dia" aria-label="Editar liturgia de {{ d.data_curta }}"><i class="bi bi-pencil"></i></button>
+        {% endif %}
       </div>
     </div>
 
@@ -72,7 +74,9 @@
       <p class="text-secondary small mb-0">
         As leituras deste dia ainda não foram carregadas.
         <button type="button" class="btn btn-suave btn-sm ms-1" data-atualizar="{{ d.data }}"><i class="bi bi-cloud-download"></i> Buscar leituras</button>
+        {% if usuario.coordenador %}
         <button type="button" class="btn btn-contorno btn-sm ms-1" data-editar="{{ d.data }}"><i class="bi bi-pencil"></i> Preencher manualmente</button>
+        {% endif %}
       </p>
       {% endif %}
     </div>
@@ -138,3 +142,4 @@
 <script>window.LITURGIAS = {{ dias|tojson }};</script>
 <script src="{{ url_for('coroinhas.static', filename='js/liturgia.js') }}"></script>
 {% endblock %}
+
