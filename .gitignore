@@ -1,4 +1,7 @@
-# Dados pessoais de menores (cadastros, escalas, backups e planilhas) e chave da sessão — nunca versionar
+# Dados pessoais de menores (cadastros, escalas, backups e planilhas), variáveis de ambiente e chave da sessão — nunca versionar
+.env
+.env.*
+!.env.example
 dados/
 *.xlsx
 

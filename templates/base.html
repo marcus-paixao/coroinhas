@@ -81,9 +81,77 @@
 
 <div class="toast-container avisos" id="toasts" aria-live="polite"></div>
 
+{% macro avatar_sacrobyte(tam=42) -%}
+<svg class="sacrobyte-svg" width="{{ tam }}" height="{{ tam }}" viewBox="0 0 64 64" role="img" aria-label="SacroByte">
+  <circle cx="32" cy="32" r="30" fill="#12215f"/>
+  <circle cx="32" cy="23" r="14.5" fill="none" stroke="#f5c451" stroke-width="2" opacity=".85"/>
+  <!-- Batina vermelha (base e gola) -->
+  <path d="M12 58c2-11 9-17 20-17s18 6 20 17" fill="#d6293a"/>
+  <!-- Sobrepeliz branca por cima da batina -->
+  <path d="M16 55c1.8-9 7.5-14 16-14s14.2 5 16 14l-7 2H23l-7-2z" fill="#ffffff"/>
+  <path d="M24 41l8 7 8-7" fill="none" stroke="#dce3f5" stroke-width="1.5"/>
+  <!-- Gola vermelha da batina -->
+  <path d="M26 39h12l-2 4h-8z" fill="#d6293a"/>
+  <!-- Cruz dourada no peito -->
+  <path d="M32 45v8M29 48h6" stroke="#d49b27" stroke-width="2.2" stroke-linecap="round"/>
+  <!-- Rosto simpático do coroinha -->
+  <circle cx="32" cy="25" r="10.5" fill="#ffdfc4"/>
+  <!-- Cabelo -->
+  <path d="M21.5 24c0-7 4.8-11.5 10.8-11.5 5.8 0 10.2 4.2 10.2 11 0-2.5-2.5-4.8-5.8-5.2-2.6-.3-5.6 1.2-8.4 1.2-3 0-5.2 1.5-6.8 4.5z" fill="#3b2314"/>
+  <!-- Olhos e sorriso -->
+  <circle cx="28.3" cy="25.5" r="1.4" fill="#18203f"/>
+  <circle cx="35.7" cy="25.5" r="1.4" fill="#18203f"/>
+  <circle cx="26.3" cy="28" r="1.6" fill="#ff9aa2" opacity=".55"/>
+  <circle cx="37.7" cy="28" r="1.6" fill="#ff9aa2" opacity=".55"/>
+  <path d="M28.8 29.2q3.2 2.8 6.4 0" fill="none" stroke="#8a3b2c" stroke-width="1.6" stroke-linecap="round"/>
+</svg>
+{%- endmacro %}
+
+<!-- Widget Flutuante SacroByte -->
+<div class="sacrobyte-widget" id="sacrobyteWidget">
+  <button type="button" class="sacrobyte-fab" id="btnSacrobyte" aria-label="Abrir assistente SacroByte" aria-expanded="false" title="Falar com o SacroByte">
+    {{ avatar_sacrobyte(48) }}
+    <span class="sacrobyte-fab-badge" aria-hidden="true">IA</span>
+  </button>
+
+  <section class="sacrobyte-janela" id="janelaSacrobyte" aria-label="Chat com SacroByte" hidden>
+    <header class="sacrobyte-topo">
+      {{ avatar_sacrobyte(42) }}
+      <div class="sacrobyte-topo-info">
+        <strong>SacroByte</strong>
+        <span><i class="sacrobyte-ponto"></i> Online para servir</span>
+      </div>
+      <button type="button" class="btn-icone" id="btnLimparChat" title="Nova conversa" aria-label="Limpar conversa"><i class="bi bi-arrow-counterclockwise"></i></button>
+      <button type="button" class="btn-icone" id="btnFecharChat" title="Fechar chat" aria-label="Fechar chat"><i class="bi bi-x-lg"></i></button>
+    </header>
+
+    <div class="sacrobyte-mensagens" id="sacrobyteMensagens" role="log" aria-live="polite">
+      <div class="sb-msg sb-bot">
+        <div class="sb-avatar">{{ avatar_sacrobyte(30) }}</div>
+        <div class="sb-balao">
+          Paz e bem! 🙏 Eu sou o <strong>SacroByte</strong>, seu servidor do altar digital! Pronto para servir cada requisição do Portal.<br><br>
+          Posso ajudar com dúvidas sobre a <strong>escala da semana</strong>, <strong>liturgia e cores dos paramentos</strong> ou <strong>objetos e funções do altar</strong>!
+        </div>
+      </div>
+    </div>
+
+    <div class="sacrobyte-sugestoes" id="sacrobyteSugestoes">
+      <button type="button" data-pergunta="Quem ainda está sem escala nesta semana?">📋 Quem falta escalar?</button>
+      <button type="button" data-pergunta="Qual é a liturgia e a cor do paramento deste fim de semana?">📗 Liturgia da semana</button>
+      <button type="button" data-pergunta="Como funcionam o turíbulo e a naveta na missa?">🔥 Turíbulo e Naveta</button>
+    </div>
+
+    <form class="sacrobyte-form" id="formSacrobyte" autocomplete="off">
+      <input type="text" class="form-control" id="inputSacrobyte" placeholder="Pergunte ao SacroByte…" maxlength="1500" required>
+      <button type="submit" class="btn btn-ouro" id="btnEnviarSacrobyte" aria-label="Enviar mensagem"><i class="bi bi-send-fill"></i></button>
+    </form>
+  </section>
+</div>
+
 <script src="{{ url_for('static', filename='vendor/bootstrap/bootstrap.bundle.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/comum.js') }}"></script>
 <script>window.API = {{ url_for('coroinhas.painel')|tojson }}.replace(/\/$/, "");</script>
+<script src="{{ url_for('static', filename='js/sacrobyte.js') }}"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

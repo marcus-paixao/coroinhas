@@ -293,3 +293,27 @@ def test_liturgia(cliente):
     assert dados["resumo_leituras"] == ["3Jo 1,5-8", "Sl 111(112),1-2.3-4.5-6 (R. 1)", "Lc 18,1-8"]
     html = cliente.get("/liturgia?semana=2026-11-09").get_data(as_text=True)
     assert "3Jo 1,5-8" in html and "Lc 18,1-8" in html
+
+
+def test_sacrobyte_chat(cliente, monkeypatch):
+    import sacrobyte
+    assert app.test_client().post("/chat", json={"mensagem": "Oi"}).status_code == 401
+    assert cliente.post("/chat", json={"mensagem": ""}).status_code == 400
+
+    historico_recebido = []
+    monkeypatch.setattr(
+        sacrobyte,
+        "_chamar_gemini",
+        lambda msg, hist: (historico_recebido.append(list(hist)) or f"Paz e bem! Recebi: {msg}"),
+    )
+    r1 = cliente.post("/chat", json={"mensagem": "Qual a cor litúrgica?"})
+    assert r1.status_code == 200 and "Paz e bem!" in r1.get_json()["resposta"]
+    assert historico_recebido[0] == []
+
+    r2 = cliente.post("/chat", json={"mensagem": "E o evangelho?"})
+    assert r2.status_code == 200
+    assert len(historico_recebido[1]) == 2 and historico_recebido[1][0]["text"] == "Qual a cor litúrgica?"
+
+    assert cliente.post("/chat/limpar", json={}).status_code == 200
+    cliente.post("/chat", json={"mensagem": "Nova conversa"})
+    assert historico_recebido[2] == []

@@ -21,6 +21,7 @@ from flask import Flask, jsonify, redirect, request, url_for
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 import acesso
+import sacrobyte
 from projetos import coroinhas
 
 # Projetos do sistema (o primeiro abre ao entrar)
@@ -50,6 +51,7 @@ app.config.update(
 )
 app.json.ensure_ascii = False
 app.register_blueprint(acesso.bp)
+app.register_blueprint(sacrobyte.bp)
 for m in MODULOS:
     app.register_blueprint(m.bp)
 acesso.proteger(app)

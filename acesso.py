@@ -289,7 +289,7 @@ def proteger(app) -> None:
             g.usuario = None
             session.clear()
         if g.usuario is None:
-            if "/api/" in request.path:
+            if "/api/" in request.path or request.path.startswith("/chat"):
                 return jsonify({"erro": "Sua sessão expirou. Entre de novo."}), 401
             return redirect(url_for("acesso.entrar", proximo=request.full_path.rstrip("?")))
         return None
