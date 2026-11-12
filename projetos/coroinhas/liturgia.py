@@ -304,3 +304,4 @@ def liturgia_padrao(d: date) -> dict:
         "leituras": [],
         "fonte": "calculado",
     }
+
